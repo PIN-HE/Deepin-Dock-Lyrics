@@ -41,6 +41,7 @@ ctest --test-dir build --output-on-failure
 
 ```text
 common/lyrics-core/      Public data types and pure utility code
+common/lyrics-ui/        Theme-aware DTK6/QML design tokens
 daemon/lyrics-dockd/     User-session background daemon
 apps/lyrics-settings/    DTK6 settings application
 dock-applet/             dde-shell Dock applet package and bridge

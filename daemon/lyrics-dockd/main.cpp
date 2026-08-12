@@ -1,6 +1,11 @@
+#include "mprisplayerdiscovery.h"
+
 #include <QCommandLineParser>
 #include <QCoreApplication>
+#include <QDBusConnection>
 #include <QTextStream>
+
+using deepin::lyrics::MprisPlayerDiscovery;
 
 int main(int argc, char *argv[])
 {
@@ -12,14 +17,22 @@ int main(int argc, char *argv[])
     parser.setApplicationDescription(QStringLiteral("Deepin Dock Lyrics background service"));
     parser.addHelpOption();
     parser.addVersionOption();
-    parser.addOption({QStringLiteral("check"), QStringLiteral("Verify the S00 daemon skeleton and exit.")});
+    parser.addOption({QStringLiteral("check"), QStringLiteral("Verify the daemon executable and exit.")});
+    parser.addOption({QStringLiteral("player"),
+                      QStringLiteral("Track one MPRIS bus name."),
+                      QStringLiteral("bus-name")});
     parser.process(app);
 
     if (parser.isSet(QStringLiteral("check"))) {
-        QTextStream(stdout) << "lyrics-dockd S00 skeleton is available\n";
+        QTextStream(stdout) << "lyrics-dockd is available\n";
         return 0;
     }
 
-    QTextStream(stderr) << "lyrics-dockd is not active until the daemon specification is implemented\n";
-    return 0;
+    MprisPlayerDiscovery discovery(QDBusConnection::sessionBus());
+    discovery.setSelectedPlayer(parser.value(QStringLiteral("player")));
+    discovery.start();
+
+    // S02 仅保持 MPRIS 发现循环；S03 将在同一进程中注册产品 D-Bus 服务。
+    // S02 only keeps MPRIS discovery alive; S03 will export the product D-Bus service here.
+    return app.exec();
 }

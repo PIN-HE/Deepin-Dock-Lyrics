@@ -25,6 +25,14 @@ struct TrackIdentity {
     QString album;
     qint64 durationMs = -1;
     QString playerBusName;
+    bool searchable = false;
+};
+
+struct PlayerDescriptor {
+    QString busName;
+    QString identity;
+    QString desktopEntry;
+    bool available = false;
 };
 
 struct PlayerSnapshot {
@@ -32,6 +40,7 @@ struct PlayerSnapshot {
     QString identity;
     PlaybackStatus playbackStatus = PlaybackStatus::Stopped;
     qint64 positionMs = -1;
+    double playbackRate = 1.0;
     QDateTime capturedAt;
     TrackIdentity track;
 };
@@ -69,3 +78,8 @@ struct LyricFrame {
 };
 
 } // namespace deepin::lyrics
+
+Q_DECLARE_METATYPE(deepin::lyrics::TrackIdentity)
+Q_DECLARE_METATYPE(deepin::lyrics::PlayerDescriptor)
+Q_DECLARE_METATYPE(QList<deepin::lyrics::PlayerDescriptor>)
+Q_DECLARE_METATYPE(deepin::lyrics::PlayerSnapshot)
