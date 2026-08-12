@@ -15,7 +15,12 @@ Rectangle {
     property bool progressSmoothingEnabled: true
     property int progressAnimationDuration: 220
     property int marqueeStartDelay: 800
+    property int lyricTransitionDuration: 280
     property real animatedProgress: 0
+    property string displayedCurrentText: ""
+    property string displayedSecondaryText: ""
+    property string outgoingCurrentText: ""
+    property bool lyricTransitionActive: false
 
     signal activated()
     signal hideRequested()
@@ -44,12 +49,64 @@ Rectangle {
         progressAnimation.start()
     }
 
+    function resetLyricLines() {
+        lyricTransition.stop()
+        lyricTransitionActive = false
+        displayedCurrentText = currentText
+        displayedSecondaryText = secondaryText
+        outgoingCurrentText = ""
+        currentLine.y = textArea.currentLineRestY
+        currentLine.opacity = 1
+        currentLine.scale = 1
+        secondaryLine.y = textArea.secondaryLineRestY
+        secondaryLine.opacity = secondaryText.length > 0 ? 1 : 0
+        outgoingLine.y = textArea.currentLineRestY
+        outgoingLine.opacity = 0
+        outgoingLine.visible = false
+    }
+
+    function transitionLyricLines() {
+        // 非歌词状态和首次内容直接显示，避免状态文案或初次加载产生无意义的位移动画。
+        // Render non-lyric states and initial content directly so status text never has a meaningless transition.
+        if (!progressVisible || !currentText.length || !displayedCurrentText.length
+                || !motionEnabled || lyricTransitionDuration <= 0) {
+            resetLyricLines()
+            return
+        }
+
+        lyricTransition.stop()
+        outgoingCurrentText = displayedCurrentText
+        displayedCurrentText = currentText
+        displayedSecondaryText = secondaryText
+        lyricTransitionActive = true
+
+        outgoingLine.visible = outgoingCurrentText.length > 0
+        outgoingLine.y = textArea.currentLineRestY
+        outgoingLine.opacity = 1
+        currentLine.y = textArea.secondaryLineRestY
+        currentLine.opacity = 1
+        currentLine.scale = 0.96
+        secondaryLine.y = textArea.secondaryLineRestY + LyricsTokens.dockLineHeight
+        secondaryLine.opacity = 0
+        lyricTransition.start()
+    }
+
     onLineProgressChanged: updateProgress()
     onCurrentTextChanged: {
         progressAnimation.stop()
         animatedProgress = Math.max(0, Math.min(1, lineProgress))
+        transitionLyricLines()
     }
-    onProgressVisibleChanged: updateProgress()
+    onSecondaryTextChanged: {
+        if (lyricTransitionActive)
+            displayedSecondaryText = secondaryText
+        else
+            resetLyricLines()
+    }
+    onProgressVisibleChanged: {
+        updateProgress()
+        resetLyricLines()
+    }
 
     Behavior on color {
         ColorAnimation { duration: LyricsTokens.motionFast }
@@ -65,15 +122,17 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
+        readonly property real currentLineRestY: 2
+        readonly property real secondaryLineRestY: height - LyricsTokens.dockLineHeight - 2
+
         MarqueeText {
             id: currentLine
 
             objectName: "currentLyricLine"
 
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.topMargin: 2
+            x: 0
+            width: parent.width
+            y: textArea.currentLineRestY
             height: LyricsTokens.dockLineHeight
             color: LyricsTokens.dockLyricCurrentColor
             progressColor: LyricsTokens.dockLyricProgressColor
@@ -84,22 +143,42 @@ Rectangle {
             marqueeEnabled: true
             motionEnabled: root.motionEnabled
             startDelay: root.marqueeStartDelay
-            text: root.currentText
+            text: root.displayedCurrentText
         }
 
         Text {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 2
+            id: secondaryLine
+
+            objectName: "secondaryLyricLine"
+
+            x: 0
+            width: parent.width
+            y: textArea.secondaryLineRestY
             height: LyricsTokens.dockLineHeight
             color: LyricsTokens.dockLyricSecondaryColor
             elide: Text.ElideRight
             font.pixelSize: LyricsTokens.dockSecondaryFontSize
             horizontalAlignment: Text.AlignLeft
-            text: root.secondaryText
+            text: root.displayedSecondaryText
             verticalAlignment: Text.AlignVCenter
             visible: text.length > 0
+        }
+
+        MarqueeText {
+            id: outgoingLine
+
+            objectName: "outgoingLyricLine"
+
+            x: 0
+            width: parent.width
+            y: textArea.currentLineRestY
+            height: LyricsTokens.dockLineHeight
+            color: LyricsTokens.dockLyricCurrentColor
+            pixelSize: LyricsTokens.dockCurrentFontSize
+            weight: Font.Medium
+            marqueeEnabled: false
+            text: root.outgoingCurrentText
+            visible: false
         }
 
         MouseArea {
@@ -151,5 +230,64 @@ Rectangle {
         property: "animatedProgress"
         duration: root.progressAnimationDuration
         easing.type: Easing.Linear
+    }
+
+    SequentialAnimation {
+        id: lyricTransition
+
+        ParallelAnimation {
+            NumberAnimation {
+                target: outgoingLine
+                property: "y"
+                to: textArea.currentLineRestY - LyricsTokens.dockLineHeight * 0.45
+                duration: root.lyricTransitionDuration
+                easing.type: Easing.InCubic
+            }
+            NumberAnimation {
+                target: outgoingLine
+                property: "opacity"
+                to: 0
+                duration: root.lyricTransitionDuration
+                easing.type: Easing.InQuad
+            }
+            NumberAnimation {
+                target: currentLine
+                property: "y"
+                to: textArea.currentLineRestY
+                duration: root.lyricTransitionDuration
+                // 使用超过终点再回落的贝塞尔曲线，形成轻微的上弹感。
+                // A Bezier curve that overshoots its endpoint creates the subtle upward bounce.
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: [0.18, 0.90, 0.28, 1.16, 1.0, 1.0]
+            }
+            NumberAnimation {
+                target: currentLine
+                property: "scale"
+                to: 1
+                duration: root.lyricTransitionDuration
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: [0.18, 0.90, 0.28, 1.16, 1.0, 1.0]
+            }
+            NumberAnimation {
+                target: secondaryLine
+                property: "y"
+                to: textArea.secondaryLineRestY
+                duration: root.lyricTransitionDuration
+                easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: secondaryLine
+                property: "opacity"
+                to: root.displayedSecondaryText.length > 0 ? 1 : 0
+                duration: root.lyricTransitionDuration
+                easing.type: Easing.OutQuad
+            }
+        }
+        ScriptAction {
+            script: {
+                root.lyricTransitionActive = false
+                outgoingLine.visible = false
+            }
+        }
     }
 }

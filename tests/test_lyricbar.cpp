@@ -17,6 +17,7 @@ private slots:
     void initTestCase();
     void smoothsForwardProgressAndResetsBackward();
     void scrollsOnlyOverflowingText();
+    void transitionsLyricsWithAnUpwardBounce();
 
 private:
     std::unique_ptr<QObject> createBar();
@@ -84,6 +85,41 @@ void LyricBarTest::scrollsOnlyOverflowingText()
     bar->setProperty("currentText", QString(120, QLatin1Char('W')));
     QTRY_VERIFY_WITH_TIMEOUT(line->property("maximumOffset").toDouble() > 0, 300);
     QTRY_VERIFY_WITH_TIMEOUT(line->property("contentOffset").toDouble() > 0, 500);
+}
+
+void LyricBarTest::transitionsLyricsWithAnUpwardBounce()
+{
+    auto bar = createBar();
+    QVERIFY(bar);
+    bar->setProperty("width", 280);
+    bar->setProperty("height", 36);
+    bar->setProperty("lyricTransitionDuration", 180);
+    bar->setProperty("currentText", QStringLiteral("First line"));
+    bar->setProperty("secondaryText", QStringLiteral("Second line"));
+    bar->setProperty("progressVisible", true);
+
+    auto *currentLine = bar->findChild<QQuickItem *>(QStringLiteral("currentLyricLine"));
+    auto *outgoingLine = bar->findChild<QQuickItem *>(QStringLiteral("outgoingLyricLine"));
+    auto *secondaryLine = bar->findChild<QQuickItem *>(QStringLiteral("secondaryLyricLine"));
+    QVERIFY(currentLine);
+    QVERIFY(outgoingLine);
+    QVERIFY(secondaryLine);
+
+    bar->setProperty("currentText", QStringLiteral("Third line"));
+    bar->setProperty("secondaryText", QStringLiteral("Fourth line"));
+
+    QCOMPARE(bar->property("displayedCurrentText").toString(), QStringLiteral("Third line"));
+    QCOMPARE(outgoingLine->property("text").toString(), QStringLiteral("First line"));
+    QVERIFY(outgoingLine->isVisible());
+    QVERIFY(currentLine->y() > 2.0);
+    QVERIFY(currentLine->scale() < 1.0);
+
+    QTRY_VERIFY_WITH_TIMEOUT(!bar->property("lyricTransitionActive").toBool(), 300);
+    QCOMPARE(currentLine->property("text").toString(), QStringLiteral("Third line"));
+    QCOMPARE(secondaryLine->property("text").toString(), QStringLiteral("Fourth line"));
+    QVERIFY(!outgoingLine->isVisible());
+    QCOMPARE(currentLine->y(), 2.0);
+    QCOMPARE(currentLine->scale(), 1.0);
 }
 
 QTEST_MAIN(LyricBarTest)
