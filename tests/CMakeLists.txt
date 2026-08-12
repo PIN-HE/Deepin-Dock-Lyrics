@@ -106,6 +106,19 @@ target_link_libraries(lyrics-service-controller-test
 
 add_test(NAME lyrics-service-controller-test COMMAND lyrics-service-controller-test)
 
+add_executable(opencc-chinese-script-converter-test
+    test_openccchinesescriptconverter.cpp
+)
+
+target_link_libraries(opencc-chinese-script-converter-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME opencc-chinese-script-converter-test COMMAND opencc-chinese-script-converter-test)
+
 add_executable(lyrics-dbus-adapter-test
     test_lyricsdbusadapter.cpp
 )

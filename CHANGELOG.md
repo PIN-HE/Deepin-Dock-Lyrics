@@ -1,5 +1,10 @@
 # Changelog / 变更记录
 
+## Unreleased / 未发布
+
+- 使用 OpenCC `t2s.json` 在 daemon 解析歌词前将繁体中文转换为简体中文，缓存仍保留来源原文。
+- Convert Traditional Chinese lyrics to Simplified Chinese with OpenCC `t2s.json` before daemon parsing while preserving source text in cache.
+
 ## 1.0.0 - 2026-08-13
 
 ### 中文

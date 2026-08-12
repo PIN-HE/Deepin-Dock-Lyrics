@@ -97,6 +97,22 @@ public:
     void write(LogLevel, const LogEvent &) override { }
 };
 
+class FakeChineseScriptConverter final : public ChineseScriptConverter
+{
+public:
+    std::optional<QString> toSimplified(const QString &text) const override
+    {
+        if (failConversion)
+            return std::nullopt;
+        QString result = text;
+        result.replace(QStringLiteral("後來"), QStringLiteral("后来"));
+        result.replace(QStringLiteral("學會"), QStringLiteral("学会"));
+        return result;
+    }
+
+    bool failConversion = false;
+};
+
 class LyricsServiceControllerTest final : public QObject
 {
     Q_OBJECT
@@ -110,6 +126,8 @@ private slots:
     void clearsFrameWhenRawTrackChanges();
     void publishesFramesForPositionPauseSeekAndOffset();
     void restartsLookupAfterReenable();
+    void convertsTraditionalLyricsBeforeParsing();
+    void keepsSourceLyricsWhenConversionFails();
 };
 
 void LyricsServiceControllerTest::followsCoreStateTransitions()
@@ -363,6 +381,73 @@ void LyricsServiceControllerTest::restartsLookupAfterReenable()
     QVERIFY(controller.setEnabled(true));
     QCOMPARE(controller.status(), ServiceStatus::LookingUpLyrics);
     QCOMPARE(lyrics.lastTrack.title, track.title);
+}
+
+void LyricsServiceControllerTest::convertsTraditionalLyricsBeforeParsing()
+{
+    FakePlayerPort player;
+    MemorySettingsPort settings;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeLyricsPort lyrics;
+    FakeChineseScriptConverter converter;
+    LyricsServiceController controller(player, settings, logger, converter, &lyrics);
+    QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
+
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selected = settings.playerValue;
+    player.players = {{player.selected, QStringLiteral("Demo"), {}, true}};
+    player.selectedAvailable = true;
+    controller.start();
+
+    TrackIdentity track;
+    track.title = QStringLiteral("Private title");
+    track.artists = {QStringLiteral("Private artist")};
+    track.durationMs = 90000;
+    track.playerBusName = player.selected;
+    track.searchable = true;
+    player.currentSnapshot.positionMs = 1500;
+    player.publishTrack(track);
+    lyrics.publishLyrics(QStringLiteral("[00:01.00]後來我總算學會\n[00:03.00]Next"));
+
+    const QVariantMap frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(),
+             QStringLiteral("后来我總算学会"));
+}
+
+void LyricsServiceControllerTest::keepsSourceLyricsWhenConversionFails()
+{
+    FakePlayerPort player;
+    MemorySettingsPort settings;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeLyricsPort lyrics;
+    FakeChineseScriptConverter converter;
+    converter.failConversion = true;
+    LyricsServiceController controller(player, settings, logger, converter, &lyrics);
+    QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
+
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selected = settings.playerValue;
+    player.players = {{player.selected, QStringLiteral("Demo"), {}, true}};
+    player.selectedAvailable = true;
+    controller.start();
+
+    TrackIdentity track;
+    track.title = QStringLiteral("Private title");
+    track.artists = {QStringLiteral("Private artist")};
+    track.durationMs = 90000;
+    track.playerBusName = player.selected;
+    track.searchable = true;
+    player.currentSnapshot.positionMs = 1500;
+    player.publishTrack(track);
+    lyrics.publishLyrics(QStringLiteral("[00:01.00]後來仍是原文\n[00:03.00]Next"));
+
+    const QVariantMap frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(),
+             QStringLiteral("後來仍是原文"));
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

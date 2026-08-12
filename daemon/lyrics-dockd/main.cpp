@@ -4,6 +4,7 @@
 #include "infrastructure/lrcliblyricsadapter.h"
 #include "infrastructure/lrclibprovider.h"
 #include "infrastructure/mprisplayeradapter.h"
+#include "infrastructure/openccchinesescriptconverter.h"
 #include "infrastructure/qtnetworktransport.h"
 #include "infrastructure/sqlitelyricscache.h"
 
@@ -54,10 +55,17 @@ int main(int argc, char *argv[])
     LRCLIBProvider provider(transport);
     SqliteLyricsCache cache;
     LrclibLyricsAdapter lyrics(provider, cache, logger);
+    OpenCcChineseScriptConverter scriptConverter;
+    if (!scriptConverter.isValid()) {
+        logger.write(LogLevel::Critical, QStringLiteral("daemon"),
+                     QStringLiteral("service_start_failed"),
+                     {{QStringLiteral("error_code"), QStringLiteral("opencc-unavailable")}});
+        return 3;
+    }
     if (parser.isSet(QStringLiteral("player")))
         settings.setPlayerBusName(parser.value(QStringLiteral("player")));
 
-    LyricsServiceController controller(player, settings, logger, &lyrics);
+    LyricsServiceController controller(player, settings, logger, scriptConverter, &lyrics);
     LyricsDbusAdapter dbus(controller, QDBusConnection::sessionBus());
     QString errorCode;
     if (!dbus.registerService(&errorCode)) {

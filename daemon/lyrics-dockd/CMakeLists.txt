@@ -30,11 +30,14 @@ add_library(lyrics-service STATIC
     infrastructure/lrclibprovider.h
     infrastructure/mprisplayeradapter.cpp
     infrastructure/mprisplayeradapter.h
+    infrastructure/openccchinesescriptconverter.cpp
+    infrastructure/openccchinesescriptconverter.h
     infrastructure/qtnetworktransport.cpp
     infrastructure/qtnetworktransport.h
     infrastructure/sqlitelyricscache.cpp
     infrastructure/sqlitelyricscache.h
     ports/httptransport.h
+    ports/chinesescriptconverter.h
     ports/lyricscache.h
     ports/lyricsport.h
     ports/playerport.h
@@ -59,6 +62,7 @@ target_link_libraries(lyrics-service
         Qt6::Network
         Qt6::Sql
         Dtk6::Core
+        PkgConfig::OpenCC
 )
 
 add_executable(lyrics-dockd

@@ -95,6 +95,17 @@ LyricsServiceController::LyricsServiceController(PlayerPort &player,
     }
 }
 
+LyricsServiceController::LyricsServiceController(PlayerPort &player,
+                                                 SettingsPort &settings,
+                                                 LogEngine &logger,
+                                                 ChineseScriptConverter &scriptConverter,
+                                                 LyricsPort *lyrics,
+                                                 QObject *parent)
+    : LyricsServiceController(player, settings, logger, lyrics, parent)
+{
+    m_scriptConverter = &scriptConverter;
+}
+
 void LyricsServiceController::start()
 {
     if (m_started)
@@ -304,7 +315,16 @@ void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
         m_candidateMaps.clear();
         emit candidatesChanged({});
     }
-    m_parsedLyrics = parseLyrics(payload);
+    LyricPayload displayPayload = payload;
+    if (m_scriptConverter) {
+        // 缓存保留来源原文，仅在解析显示副本前统一繁转简。
+        // Preserve source text in cache and convert only the display copy before parsing.
+        if (const auto converted = m_scriptConverter->toSimplified(displayPayload.syncedLyrics))
+            displayPayload.syncedLyrics = *converted;
+        if (const auto converted = m_scriptConverter->toSimplified(displayPayload.plainLyrics))
+            displayPayload.plainLyrics = *converted;
+    }
+    m_parsedLyrics = parseLyrics(displayPayload);
     m_lyricsSource = payload.providerId;
     if (m_parsedLyrics.timing == TimingCapability::None) {
         clearFrame();

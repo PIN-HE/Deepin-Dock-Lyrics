@@ -36,9 +36,11 @@ libdtk6core-dev
 libdtk6gui-dev
 libdtk6widget-dev
 libdde-shell-dev
+libopencc-dev
 ```
 
 The settings application uses `DApplication` and DTK6 Widgets, so `libdtk6widget-dev` is required.
+The daemon uses OpenCC `t2s.json` to convert Traditional Chinese lyric text to Simplified Chinese before display.
 
 ## Build and test
 

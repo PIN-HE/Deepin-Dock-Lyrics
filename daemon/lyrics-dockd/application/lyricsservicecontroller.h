@@ -3,6 +3,7 @@
 #include "ports/lyricsport.h"
 #include "ports/playerport.h"
 #include "ports/settingsport.h"
+#include "ports/chinesescriptconverter.h"
 
 #include <lyricslogging/logengine.h>
 #include <lyricscore/types.h>
@@ -31,6 +32,12 @@ public:
     LyricsServiceController(PlayerPort &player,
                             SettingsPort &settings,
                             LogEngine &logger,
+                            LyricsPort *lyrics = nullptr,
+                            QObject *parent = nullptr);
+    LyricsServiceController(PlayerPort &player,
+                            SettingsPort &settings,
+                            LogEngine &logger,
+                            ChineseScriptConverter &scriptConverter,
                             LyricsPort *lyrics = nullptr,
                             QObject *parent = nullptr);
 
@@ -76,6 +83,7 @@ private:
     SettingsPort &m_settings;
     LogEngine &m_logger;
     LyricsPort *m_lyrics = nullptr;
+    ChineseScriptConverter *m_scriptConverter = nullptr;
     QList<PlayerDescriptor> m_players;
     QVariantList m_candidateMaps;
     PlayerSnapshot m_snapshot;

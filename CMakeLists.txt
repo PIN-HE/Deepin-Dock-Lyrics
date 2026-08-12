@@ -31,6 +31,8 @@ find_package(Qt6 REQUIRED COMPONENTS Core DBus LinguistTools Network Sql Widgets
 find_package(Dtk6 REQUIRED COMPONENTS Core Gui Widget)
 find_package(Dtk6DConfig REQUIRED)
 find_package(DDEShell REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(OpenCC REQUIRED IMPORTED_TARGET opencc)
 
 add_subdirectory(common/lyrics-core)
 add_subdirectory(common/lyrics-logging)
