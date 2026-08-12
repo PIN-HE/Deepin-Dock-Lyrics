@@ -32,6 +32,7 @@ enum class VisualizerState {
 enum class StreamMatchConfidence {
     None,
     ExactPid,
+    ExactMprisProcessTree,
 };
 
 constexpr int visualizerBandCount = 16;

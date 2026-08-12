@@ -44,6 +44,7 @@ private:
     static void onProcess(void *data);
     void ensurePipeWireConnection();
     void destroyCapture();
+    QSet<qint64> mprisProcessTree() const;
 #endif
     void setState(VisualizerState state, StreamMatchConfidence confidence);
 

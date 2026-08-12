@@ -8,6 +8,9 @@
 #include <spa/param/audio/raw-utils.h>
 
 #include <QMetaObject>
+#include <QDir>
+#include <QFile>
+#include <QTextStream>
 
 #include <algorithm>
 #include <memory>
@@ -20,6 +23,34 @@ QString pipeWireProperty(const spa_dict *properties, const char *key)
 {
     const char *value = properties ? spa_dict_lookup(properties, key) : nullptr;
     return value ? QString::fromUtf8(value) : QString();
+}
+
+struct ProcessInfo {
+    qint64 parentProcessId = 0;
+    uint userId = 0;
+};
+
+std::optional<ProcessInfo> processInfo(qint64 processId)
+{
+    QFile file(QStringLiteral("/proc/%1/status").arg(processId));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return std::nullopt;
+
+    ProcessInfo result;
+    bool parentFound = false;
+    bool userFound = false;
+    while (!file.atEnd()) {
+        const QByteArray line = file.readLine();
+        if (line.startsWith("PPid:")) {
+            result.parentProcessId = QString::fromLatin1(line.sliced(5)).trimmed().toLongLong();
+            parentFound = result.parentProcessId >= 0;
+        } else if (line.startsWith("Uid:")) {
+            result.userId = QString::fromLatin1(line.sliced(4)).trimmed()
+                                .section(QLatin1Char(' '), 0, 0).toUInt();
+            userFound = true;
+        }
+    }
+    return parentFound && userFound ? std::optional<ProcessInfo>(result) : std::nullopt;
 }
 
 bool isInterface(const char *type, const char *expected)
@@ -188,7 +219,8 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
         clients = m_clients;
         nodes = m_nodes;
     }
-    const auto target = selectExactPipeWireAudioStream(clients, nodes, m_processId);
+    const QSet<qint64> processIds = mprisProcessTree();
+    const auto target = selectMprisOwnedPipeWireAudioStream(clients, nodes, processIds);
     if (!target) {
         destroyCapture();
         setState(VisualizerState::Unavailable, StreamMatchConfidence::None);
@@ -199,7 +231,9 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
         return;
 
     destroyCapture();
-    setState(VisualizerState::ResolvingAudioStream, StreamMatchConfidence::ExactPid);
+    const StreamMatchConfidence confidence = processIds.size() == 1
+        ? StreamMatchConfidence::ExactPid : StreamMatchConfidence::ExactMprisProcessTree;
+    setState(VisualizerState::ResolvingAudioStream, confidence);
 
     uint8_t buffer[1024];
     spa_pod_builder builder = SPA_POD_BUILDER_INIT(buffer, sizeof(buffer));
@@ -235,7 +269,37 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
         return;
     }
     m_captureNodeId = target->id;
-    setState(VisualizerState::Active, StreamMatchConfidence::ExactPid);
+    setState(VisualizerState::Active, confidence);
+}
+
+QSet<qint64> PipeWireAudioVisualizerAdapter::mprisProcessTree() const
+{
+    QSet<qint64> processIds;
+    const auto root = processInfo(m_processId);
+    if (!root)
+        return processIds;
+    processIds.insert(m_processId);
+
+    QList<qint64> pending{m_processId};
+    while (!pending.isEmpty()) {
+        const qint64 parentProcessId = pending.takeFirst();
+        const QDir proc(QStringLiteral("/proc"));
+        const QStringList entries = proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const QString &entry : entries) {
+            bool valid = false;
+            const qint64 processId = entry.toLongLong(&valid);
+            if (!valid || processIds.contains(processId))
+                continue;
+            const auto info = processInfo(processId);
+            if (!info || info->userId != root->userId || info->parentProcessId != parentProcessId)
+                continue;
+            processIds.insert(processId);
+            pending.append(processId);
+        }
+    }
+    // Electron exposes MPRIS from a browser process but audio from a child process.
+    // Electron 常由浏览器进程注册 MPRIS，而由子进程输出音频。
+    return processIds;
 }
 
 void PipeWireAudioVisualizerAdapter::destroyCapture()

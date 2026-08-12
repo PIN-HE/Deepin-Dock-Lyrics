@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QList>
+#include <QSet>
 #include <QString>
 
 #include <optional>
@@ -23,5 +24,10 @@ std::optional<PipeWireNodeInfo> selectExactPipeWireAudioStream(
     const QList<PipeWireClientInfo> &clients,
     const QList<PipeWireNodeInfo> &nodes,
     qint64 processId);
+
+std::optional<PipeWireNodeInfo> selectMprisOwnedPipeWireAudioStream(
+    const QList<PipeWireClientInfo> &clients,
+    const QList<PipeWireNodeInfo> &nodes,
+    const QSet<qint64> &processIds);
 
 } // namespace deepin::lyrics

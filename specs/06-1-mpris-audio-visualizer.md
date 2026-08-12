@@ -95,9 +95,9 @@ public:
 
 1. 只对已由用户选中的 `playerBusName` 请求 PID；未选择播放器时不猜测当前活跃播放器。
 2. 调用 session D-Bus `GetConnectionUnixProcessID(playerBusName)`。服务失去 owner、返回 0 或请求失败时立即停止采样并清空帧。
-3. PipeWire 仅接受带有 `application.process.id` 且其值与 MPRIS PID 完全相同的活跃播放流。
-4. PID 不匹配、元数据缺失、出现多个候选流或目标流不可捕获时，状态为 `Unavailable`；不得按应用名称、媒体标题或默认输出设备作推测匹配。
-5. Electron 等多进程播放器的子进程匹配不属于第一阶段。后续扩展必须有可测试的、显式的父子进程证明，不能放宽为全局音频捕获。
+3. PipeWire 优先接受带有 `application.process.id` 且其值与 MPRIS PID 完全相同的活跃播放流。
+4. 对 Electron 等多进程播放器，允许同一用户下、可由 `/proc` 明确证明为 MPRIS PID 后代的进程；该进程树内仍必须只有一个可捕获的输出流。
+5. PID 不匹配、后代关系不可证明、元数据缺失、出现多个候选流或目标流不可捕获时，状态为 `Unavailable`；不得按应用名称、媒体标题或默认输出设备作推测匹配。
 6. 每次选择播放器、MPRIS owner、播放状态或 PipeWire 节点变化时重新匹配；旧连接必须先断开并将柱高重置为零。
 
 ## PipeWire 采集与处理

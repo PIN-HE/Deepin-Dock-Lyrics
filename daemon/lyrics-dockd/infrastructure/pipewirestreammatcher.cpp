@@ -9,12 +9,22 @@ std::optional<PipeWireNodeInfo> selectExactPipeWireAudioStream(
     const QList<PipeWireNodeInfo> &nodes,
     qint64 processId)
 {
-    if (processId <= 0)
+    return selectMprisOwnedPipeWireAudioStream(clients, nodes, {processId});
+}
+
+std::optional<PipeWireNodeInfo> selectMprisOwnedPipeWireAudioStream(
+    const QList<PipeWireClientInfo> &clients,
+    const QList<PipeWireNodeInfo> &nodes,
+    const QSet<qint64> &processIds)
+{
+    if (processIds.isEmpty() || std::any_of(processIds.cbegin(), processIds.cend(),
+                                            [](qint64 processId) { return processId <= 0; })) {
         return std::nullopt;
+    }
 
     QSet<quint32> matchingClientIds;
     for (const PipeWireClientInfo &client : clients) {
-        if (client.processId == processId)
+        if (processIds.contains(client.processId))
             matchingClientIds.insert(client.id);
     }
 
