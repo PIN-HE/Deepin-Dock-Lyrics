@@ -37,12 +37,16 @@ PipeWireAudioVisualizerAdapter::PipeWireAudioVisualizerAdapter(QObject *parent)
 PipeWireAudioVisualizerAdapter::~PipeWireAudioVisualizerAdapter()
 {
     stop();
-    if (m_registryListener) {
+    if (m_loop)
+        pw_thread_loop_lock(m_loop);
+    if (m_registryListener)
         spa_hook_remove(m_registryListener);
-        delete m_registryListener;
-    }
     if (m_core)
         pw_core_disconnect(m_core);
+    if (m_loop)
+        pw_thread_loop_unlock(m_loop);
+    delete m_registryListener;
+    m_registryListener = nullptr;
     if (m_context)
         pw_context_destroy(m_context);
     if (m_loop) {
@@ -109,8 +113,9 @@ void PipeWireAudioVisualizerAdapter::ensurePipeWireConnection()
         return;
     }
 
+    pw_thread_loop_lock(m_loop);
     m_registry = pw_core_get_registry(m_core, PW_VERSION_REGISTRY, 0);
-    m_registryListener = new spa_hook;
+    m_registryListener = new spa_hook {};
     static const pw_registry_events events = [] {
         pw_registry_events value {};
         value.version = PW_VERSION_REGISTRY_EVENTS;
@@ -119,6 +124,7 @@ void PipeWireAudioVisualizerAdapter::ensurePipeWireConnection()
         return value;
     }();
     pw_registry_add_listener(m_registry, m_registryListener, &events, this);
+    pw_thread_loop_unlock(m_loop);
 }
 
 void PipeWireAudioVisualizerAdapter::onGlobal(void *data, quint32 id, quint32,
