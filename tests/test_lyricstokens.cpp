@@ -29,6 +29,10 @@ void LyricsTokensTest::exposesStableGeometry()
     QCOMPARE(tokens.space1(), 4);
     QCOMPARE(tokens.space2(), 8);
     QCOMPARE(tokens.space3(), 12);
+    QCOMPARE(tokens.space4(), 16);
+    QCOMPARE(tokens.settingsPagePadding(), 24);
+    QCOMPARE(tokens.settingsSectionGap(), 24);
+    QCOMPARE(tokens.settingsRowGap(), 12);
     QCOMPARE(tokens.dockVisualHeight(), 36);
     QCOMPARE(tokens.dockLyricWidthMin(), 220);
     QCOMPARE(tokens.dockLyricWidthDefault(), 280);

@@ -219,3 +219,45 @@ add_test(NAME lyric-bar-test COMMAND lyric-bar-test)
 set_tests_properties(lyric-bar-test PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
 )
+
+add_executable(settings-viewmodel-test
+    test_settingsviewmodel.cpp
+)
+
+target_link_libraries(settings-viewmodel-test
+    PRIVATE
+        Lyrics::SettingsViewModel
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+)
+
+add_test(
+    NAME settings-viewmodel-test
+    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:settings-viewmodel-test>
+)
+set_tests_properties(settings-viewmodel-test PROPERTIES TIMEOUT 20)
+
+add_executable(settings-window-test
+    test_settingswindow.cpp
+)
+
+target_link_libraries(settings-window-test
+    PRIVATE
+        Lyrics::SettingsViewModel
+        Lyrics::SettingsWindow
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+        Qt6::Widgets
+        Dtk6::Widget
+)
+
+add_test(
+    NAME settings-window-test
+    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:settings-window-test>
+)
+set_tests_properties(settings-window-test PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 20
+)

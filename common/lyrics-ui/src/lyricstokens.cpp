@@ -53,6 +53,26 @@ int LyricsTokens::space3() const
     return 12;
 }
 
+int LyricsTokens::space4() const
+{
+    return 16;
+}
+
+int LyricsTokens::settingsPagePadding() const
+{
+    return 24;
+}
+
+int LyricsTokens::settingsSectionGap() const
+{
+    return 24;
+}
+
+int LyricsTokens::settingsRowGap() const
+{
+    return space3();
+}
+
 int LyricsTokens::dockVisualHeight() const
 {
     return 36;
@@ -146,6 +166,12 @@ QColor LyricsTokens::surfaceDock() const
 QColor LyricsTokens::surfaceDockHover() const
 {
     return DGuiApplicationHelper::blendColor(surfaceDock(), withOpacity(accent(), 0.12));
+}
+
+QColor LyricsTokens::surfaceSelected() const
+{
+    return DGuiApplicationHelper::blendColor(
+        currentPalette().color(QPalette::Base), withOpacity(accent(), 0.10));
 }
 
 QColor LyricsTokens::borderSubtle() const

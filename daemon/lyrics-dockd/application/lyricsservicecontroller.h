@@ -77,6 +77,7 @@ private:
     LogEngine &m_logger;
     LyricsPort *m_lyrics = nullptr;
     QList<PlayerDescriptor> m_players;
+    QVariantList m_candidateMaps;
     PlayerSnapshot m_snapshot;
     ParsedLyrics m_parsedLyrics;
     QVariantMap m_lastPublishedState;

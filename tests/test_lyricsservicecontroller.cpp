@@ -144,6 +144,10 @@ void LyricsServiceControllerTest::followsCoreStateTransitions()
     player.publishTrack(track);
     QCOMPARE(controller.status(), ServiceStatus::LookingUpLyrics);
     QVERIFY(controller.state().value(QStringLiteral("canSearchCandidates")).toBool());
+    QCOMPARE(controller.state().value(QStringLiteral("timingCapability")).toString(),
+             QStringLiteral("none"));
+    QVERIFY(controller.state().value(QStringLiteral("lyricsSource")).toString().isEmpty());
+    QVERIFY(controller.state().value(QStringLiteral("candidates")).toList().isEmpty());
 
     QVERIFY(controller.setEnabled(false));
     QCOMPARE(controller.status(), ServiceStatus::Disabled);

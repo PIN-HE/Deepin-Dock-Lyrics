@@ -126,6 +126,9 @@ QVariantMap LyricsServiceController::state() const
         {QStringLiteral("offsetMs"), m_offsetMs},
         {QStringLiteral("errorCode"), m_errorCode},
         {QStringLiteral("canSearchCandidates"), m_enabled && currentTrackSearchable()},
+        {QStringLiteral("lyricsSource"), m_lyricsSource},
+        {QStringLiteral("timingCapability"), timingName(m_parsedLyrics.timing)},
+        {QStringLiteral("candidates"), m_candidateMaps},
     };
 }
 
@@ -297,6 +300,10 @@ void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
 
 void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
 {
+    if (!m_candidateMaps.isEmpty()) {
+        m_candidateMaps.clear();
+        emit candidatesChanged({});
+    }
     m_parsedLyrics = parseLyrics(payload);
     m_lyricsSource = payload.providerId;
     if (m_parsedLyrics.timing == TimingCapability::None) {
@@ -331,6 +338,9 @@ void LyricsServiceController::onCandidatesChanged(const QList<LyricCandidate> &c
             {QStringLiteral("score"), candidate.score},
         });
     }
+    m_candidateMaps.clear();
+    for (const auto &map : maps)
+        m_candidateMaps.append(map);
     setStatus(ServiceStatus::NeedsCandidateSelection);
     publishState();
     emit candidatesChanged(maps);
@@ -399,6 +409,10 @@ void LyricsServiceController::publishFrame()
 
 void LyricsServiceController::clearFrame()
 {
+    const bool hadCandidates = !m_candidateMaps.isEmpty();
+    m_candidateMaps.clear();
+    if (hadCandidates)
+        emit candidatesChanged({});
     m_parsedLyrics = {};
     m_lyricsSource.clear();
     const QVariantMap emptyFrame{

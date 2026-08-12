@@ -60,7 +60,7 @@ stateDiagram-v2
 | `FrameChanged` | `(a{sv})` | 最多每秒 5 次，只在帧内容实质变化时发送 |
 | `CandidatesChanged` | `(aa{sv})` | 当前曲目的候选集替换时发送 |
 
-`GetState` / `StateChanged` 共有的键包括：`status`、`enabled`、`sessionHidden`、`playerBusName`、`availablePlayers`、`trackTitle`、`trackArtists`、`trackAlbum`、`durationMs`、`offsetMs`、`errorCode`、`canSearchCandidates`。`FrameChanged` 包括 `currentText`、`secondaryText`、`translationText`、`lineIndex`、`lineProgress`、`timingCapability`、`source`、`trackKey`。缺失值用空字符串、`-1` 或 `false` 表达，不用未约定的 `null` 变体。
+`GetState` / `StateChanged` 共有的键包括：`status`、`enabled`、`sessionHidden`、`playerBusName`、`availablePlayers`、`trackTitle`、`trackArtists`、`trackAlbum`、`durationMs`、`offsetMs`、`errorCode`、`canSearchCandidates`、`lyricsSource`、`timingCapability`、`candidates`。后面三个快照字段保证设置应用晚于候选信号启动或歌曲暂停时仍能恢复当前展示状态。`FrameChanged` 包括 `currentText`、`secondaryText`、`translationText`、`lineIndex`、`lineProgress`、`timingCapability`、`source`、`trackKey`。缺失值用空字符串、空列表、`-1` 或 `false` 表达，不用未约定的 `null` 变体。
 
 ## 行为约束
 

@@ -1,6 +1,6 @@
 # S07 DTK6 设置应用
 
-**状态：** 待实施
+**状态：** 已完成（2026-08-13）
 
 **前置：** S00、S01、S03、S04
 **后续：** S08、S09
@@ -53,3 +53,12 @@
 3. 选定播放器、偏移值和启用开关在应用重启后保持；会话隐藏状态不持久化。
 4. 低置信度候选必须由用户确认，自动路径只会采用 S04 定义的高置信度结果。
 5. 清除缓存有二次确认，完成后 UI 重新读取状态，且不会清除 DConfig 中的播放器选择。
+
+## 实现记录
+
+- 新增独立 `Lyrics::SettingsViewModel`，异步消费 `GetState`、`StateChanged`、`FrameChanged` 和 `CandidatesChanged`，统一处理服务上下线、启动竞态、嵌套 D-Bus 列表解码、忙碌态及稳定错误码；设置窗口不直接访问 LRCLIB 或 SQLite。
+- `deepin-lyrics-settings` 使用 `DApplication`、`DMainWindow`、`DSwitchButton`、`DComboBox`、`DSpinBox`、`DSuggestButton`、`DWarningButton` 和 `DDialog`。停用态展示启动主操作；启用后提供运行摘要、播放器、同步偏移、候选确认、Dock 恢复及带二次确认的缓存清理。
+- S03 状态快照向后兼容地增加 `lyricsSource`、`timingCapability` 和 `candidates`，确保设置应用晚于候选信号启动或歌曲暂停时仍能恢复完整状态。候选在窗口侧按评分稳定降序，选择后等待 daemon 发布新状态，不做本地成功假设。
+- S01 增加设置页间距与选中表面 Token；设置窗口使用 DTK 调色板和主题图标，没有硬编码 UI 色值。中英文文案通过 `tr()` 与内嵌 `zh_CN` QM 提供，翻译在窗口创建前加载。
+- 新增临时 session D-Bus ViewModel 测试和离屏窗口测试，覆盖 daemon 缺席、服务操作、播放器/候选嵌套解码、主要控件、偏移范围及暗色调色板渲染。真实中文桌面验证显示 `open-orpheus` 播放器、当前歌曲、LRCLIB 来源和逐行同步状态，无文字重叠。
+- 验证命令：`cmake -S . -B build-s07-verify -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=/usr`、`cmake --build build-s07-verify -j2`、`ctest --test-dir build-s07-verify --output-on-failure`；15 项测试全部通过。`DESTDIR=/tmp/spec007-install cmake --install build-s07-verify` 确认设置应用安装到 `/usr/bin/deepin-lyrics-settings`。

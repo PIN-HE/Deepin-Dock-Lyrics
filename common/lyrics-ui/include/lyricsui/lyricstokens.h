@@ -12,6 +12,10 @@ class LyricsTokens final : public QObject
     Q_PROPERTY(int space1 READ space1 CONSTANT FINAL)
     Q_PROPERTY(int space2 READ space2 CONSTANT FINAL)
     Q_PROPERTY(int space3 READ space3 CONSTANT FINAL)
+    Q_PROPERTY(int space4 READ space4 CONSTANT FINAL)
+    Q_PROPERTY(int settingsPagePadding READ settingsPagePadding CONSTANT FINAL)
+    Q_PROPERTY(int settingsSectionGap READ settingsSectionGap CONSTANT FINAL)
+    Q_PROPERTY(int settingsRowGap READ settingsRowGap CONSTANT FINAL)
     Q_PROPERTY(int dockVisualHeight READ dockVisualHeight CONSTANT FINAL)
     Q_PROPERTY(int dockLyricWidthMin READ dockLyricWidthMin CONSTANT FINAL)
     Q_PROPERTY(int dockLyricWidthDefault READ dockLyricWidthDefault CONSTANT FINAL)
@@ -31,6 +35,7 @@ class LyricsTokens final : public QObject
     Q_PROPERTY(QColor textTertiary READ textTertiary NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor surfaceDock READ surfaceDock NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor surfaceDockHover READ surfaceDockHover NOTIFY paletteChanged FINAL)
+    Q_PROPERTY(QColor surfaceSelected READ surfaceSelected NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor borderSubtle READ borderSubtle NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor accent READ accent NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor statusSuccess READ statusSuccess NOTIFY paletteChanged FINAL)
@@ -47,6 +52,10 @@ public:
     int space1() const;
     int space2() const;
     int space3() const;
+    int space4() const;
+    int settingsPagePadding() const;
+    int settingsSectionGap() const;
+    int settingsRowGap() const;
     int dockVisualHeight() const;
     int dockLyricWidthMin() const;
     int dockLyricWidthDefault() const;
@@ -66,6 +75,7 @@ public:
     QColor textTertiary() const;
     QColor surfaceDock() const;
     QColor surfaceDockHover() const;
+    QColor surfaceSelected() const;
     QColor borderSubtle() const;
     QColor accent() const;
     QColor statusSuccess() const;
