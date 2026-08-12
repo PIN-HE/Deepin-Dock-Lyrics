@@ -21,6 +21,8 @@ class LyricsDockViewModel final : public QObject
     Q_PROPERTY(QString timingCapability READ timingCapability NOTIFY frameChanged FINAL)
     Q_PROPERTY(QString source READ source NOTIFY frameChanged FINAL)
     Q_PROPERTY(double lineProgress READ lineProgress NOTIFY frameChanged FINAL)
+    Q_PROPERTY(bool visualizerAvailable READ visualizerAvailable NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QVariantList visualizerLevels READ visualizerLevels NOTIFY stateChanged FINAL)
 
 public:
     explicit LyricsDockViewModel(
@@ -38,6 +40,8 @@ public:
     QString timingCapability() const;
     QString source() const;
     double lineProgress() const;
+    bool visualizerAvailable() const;
+    QVariantList visualizerLevels() const;
 
     Q_INVOKABLE void setSessionHidden(bool hidden);
     Q_INVOKABLE bool openSettings();

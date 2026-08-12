@@ -18,9 +18,11 @@ public:
     bool enabled() const override;
     QString playerBusName() const override;
     int offsetMs() const override;
+    bool audioVisualizerEnabled() const override;
     void setEnabled(bool enabled) override;
     void setPlayerBusName(const QString &busName) override;
     void setOffsetMs(int offsetMs) override;
+    void setAudioVisualizerEnabled(bool enabled) override;
     bool isValid() const;
 
 private:
@@ -28,6 +30,7 @@ private:
     bool m_fallbackEnabled = false;
     QString m_fallbackPlayerBusName;
     int m_fallbackOffsetMs = 0;
+    bool m_fallbackAudioVisualizerEnabled = false;
 };
 
 } // namespace deepin::lyrics

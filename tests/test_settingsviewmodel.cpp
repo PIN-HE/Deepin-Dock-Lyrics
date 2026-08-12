@@ -56,6 +56,7 @@ public slots:
 
     void SetPlayer(const QString &busName) { emit playerCalled(busName); }
     void SetOffsetMs(int offsetMs) { emit offsetCalled(offsetMs); }
+    void SetAudioVisualizerEnabled(bool enabled) { emit audioVisualizerCalled(enabled); }
     void SearchCandidates() { emit searchCalled(); }
     void SelectCandidate(const QString &providerId, const QString &candidateId)
     {
@@ -68,6 +69,7 @@ signals:
     void sessionHiddenCalled(bool hidden);
     void playerCalled(const QString &busName);
     void offsetCalled(int offsetMs);
+    void audioVisualizerCalled(bool enabled);
     void searchCalled();
     void candidateCalled(const QString &providerId, const QString &candidateId);
     void clearCacheCalled();
@@ -100,6 +102,8 @@ public slots:
                 this, &FakeServiceWorker::playerCalled);
         connect(m_service, &FakeSettingsService::offsetCalled,
                 this, &FakeServiceWorker::offsetCalled);
+        connect(m_service, &FakeSettingsService::audioVisualizerCalled,
+                this, &FakeServiceWorker::audioVisualizerCalled);
         connect(m_service, &FakeSettingsService::searchCalled,
                 this, &FakeServiceWorker::searchCalled);
         connect(m_service, &FakeSettingsService::candidateCalled,
@@ -133,6 +137,7 @@ signals:
     void sessionHiddenCalled(bool hidden);
     void playerCalled(const QString &busName);
     void offsetCalled(int offsetMs);
+    void audioVisualizerCalled(bool enabled);
     void searchCalled();
     void candidateCalled(const QString &providerId, const QString &candidateId);
     void clearCacheCalled();
@@ -195,6 +200,7 @@ void SettingsViewModelTest::followsStateAndInvokesSettingsOperations()
     QSignalSpy hiddenSpy(&service, &FakeServiceWorker::sessionHiddenCalled);
     QSignalSpy playerSpy(&service, &FakeServiceWorker::playerCalled);
     QSignalSpy offsetSpy(&service, &FakeServiceWorker::offsetCalled);
+    QSignalSpy visualizerSpy(&service, &FakeServiceWorker::audioVisualizerCalled);
     QSignalSpy searchSpy(&service, &FakeServiceWorker::searchCalled);
     QSignalSpy candidateSpy(&service, &FakeServiceWorker::candidateCalled);
     QSignalSpy cacheSpy(&service, &FakeServiceWorker::clearCacheCalled);
@@ -205,11 +211,13 @@ void SettingsViewModelTest::followsStateAndInvokesSettingsOperations()
     QCOMPARE(hiddenSpy.constFirst().constFirst().toBool(), false);
     model.setPlayer(QStringLiteral("org.mpris.MediaPlayer2.demo"));
     model.setOffsetMs(700);
+    model.setAudioVisualizerEnabled(true);
     model.searchCandidates();
     model.selectCandidate(QStringLiteral("lrclib"), QStringLiteral("42"));
     model.clearCache();
     QTRY_COMPARE(playerSpy.count(), 1);
     QTRY_COMPARE(offsetSpy.count(), 1);
+    QTRY_COMPARE(visualizerSpy.count(), 1);
     QTRY_COMPARE(searchSpy.count(), 1);
     QTRY_COMPARE(candidateSpy.count(), 1);
     QTRY_COMPARE(cacheSpy.count(), 1);

@@ -67,6 +67,9 @@ AppletItem {
         lineProgress: viewModel.status === "LyricsReady" ? viewModel.lineProgress : 0
         progressVisible: viewModel.status === "LyricsReady"
                          && viewModel.timingCapability === "line"
+        visualizerVisible: (viewModel.status === "LookingUpLyrics" || viewModel.status === "NoLyrics")
+                           && viewModel.visualizerAvailable
+        visualizerLevels: viewModel.visualizerLevels
 
         onActivated: root.openDetails()
         onHideRequested: viewModel.setSessionHidden(true)

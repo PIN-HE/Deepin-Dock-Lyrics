@@ -9,6 +9,8 @@ Rectangle {
     property string secondaryText: ""
     property real lineProgress: 0
     property bool progressVisible: false
+    property bool visualizerVisible: false
+    property var visualizerLevels: []
     // 歌词滚动用于展示被裁切的内容，因此不能被宿主误判的装饰动画偏好关闭。
     // Lyric scrolling reveals clipped content, so a host's decorative-motion preference must not disable it.
     property bool motionEnabled: true
@@ -144,6 +146,7 @@ Rectangle {
             motionEnabled: root.motionEnabled
             startDelay: root.marqueeStartDelay
             text: root.displayedCurrentText
+            visible: !root.visualizerVisible
         }
 
         Text {
@@ -162,6 +165,44 @@ Rectangle {
             text: root.displayedSecondaryText
             verticalAlignment: Text.AlignVCenter
             visible: text.length > 0
+                     && !root.visualizerVisible
+        }
+
+        Item {
+            id: visualizer
+
+            objectName: "audioVisualizer"
+
+            anchors.fill: parent
+            visible: root.visualizerVisible
+
+            Row {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 2
+                anchors.rightMargin: 2
+                spacing: 3
+
+                Repeater {
+                    model: 16
+
+                    Rectangle {
+                        readonly property real level: index < root.visualizerLevels.length
+                                                      ? Math.max(0, Math.min(1,
+                                                          Number(root.visualizerLevels[index]))) : 0
+                        width: Math.max(2, (visualizer.width - 4 - 15 * 3) / 16)
+                        height: Math.max(3, level * (LyricsTokens.dockVisualHeight - 10))
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: LyricsTokens.dockLyricProgressColor
+                        radius: 1
+
+                        Behavior on height {
+                            NumberAnimation { duration: 50; easing.type: Easing.OutQuad }
+                        }
+                    }
+                }
+            }
         }
 
         MarqueeText {

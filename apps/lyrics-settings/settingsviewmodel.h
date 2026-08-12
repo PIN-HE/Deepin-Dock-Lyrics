@@ -28,6 +28,7 @@ public:
     void setEnabled(bool enabled);
     void setPlayer(const QString &busName);
     void setOffsetMs(int offsetMs);
+    void setAudioVisualizerEnabled(bool enabled);
     void searchCandidates();
     void selectCandidate(const QString &providerId, const QString &candidateId);
     void showInDock();

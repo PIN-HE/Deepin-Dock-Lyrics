@@ -217,6 +217,19 @@ QWidget *SettingsWindow::createSettingsPage()
         createSettingRow(tr("Sync offset (+ earlier, - later)"),
                          tr("Adjust when a timed lyric line becomes active."), m_offsetSpin)));
 
+    m_audioVisualizerSwitch = new DSwitchButton(content);
+    m_audioVisualizerSwitch->setObjectName(QStringLiteral("audioVisualizerSwitch"));
+    m_audioVisualizerSwitch->setAccessibleName(tr("Show current player's audio visualizer"));
+    connect(m_audioVisualizerSwitch, &DSwitchButton::checkedChanged, this, [this](bool checked) {
+        if (!m_updatingUi)
+            m_viewModel.setAudioVisualizerEnabled(checked);
+    });
+    layout->addWidget(createSection(
+        tr("Audio visualizer"),
+        createSettingRow(tr("Show current player's audio visualizer"),
+                         tr("Audio is processed only in memory from the selected player's exact matching stream. It is never recorded, saved, or uploaded. If no exact match is available, system audio is not read."),
+                         m_audioVisualizerSwitch)));
+
     auto *candidateContent = new QWidget(content);
     auto *candidateLayout = new QVBoxLayout(candidateContent);
     candidateLayout->setContentsMargins(0, 0, 0, 0);
@@ -380,6 +393,9 @@ void SettingsWindow::refreshUi()
         m_enabledSwitch->setChecked(enabled);
         const QSignalBlocker offsetBlocker(m_offsetSpin);
         m_offsetSpin->setValue(state.value(QStringLiteral("offsetMs")).toInt());
+        const QSignalBlocker visualizerBlocker(m_audioVisualizerSwitch);
+        m_audioVisualizerSwitch->setChecked(
+            state.value(QStringLiteral("audioVisualizerEnabled")).toBool());
         populatePlayers(state.value(QStringLiteral("availablePlayers")).toList(),
                         state.value(QStringLiteral("playerBusName")).toString());
     }
@@ -570,6 +586,7 @@ void SettingsWindow::setControlsEnabled(bool enabled)
     m_enabledSwitch->setEnabled(enabled);
     m_playerCombo->setEnabled(enabled && m_playerCombo->count() > 1);
     m_offsetSpin->setEnabled(enabled);
+    m_audioVisualizerSwitch->setEnabled(enabled);
     m_searchButton->setEnabled(enabled
         && m_viewModel.state().value(QStringLiteral("canSearchCandidates")).toBool());
     m_selectCandidateButton->setEnabled(enabled && m_candidateList->currentItem());

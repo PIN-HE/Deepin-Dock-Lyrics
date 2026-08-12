@@ -59,13 +59,16 @@ public:
     bool enabled() const override { return enabledValue; }
     QString playerBusName() const override { return playerValue; }
     int offsetMs() const override { return offsetValue; }
+    bool audioVisualizerEnabled() const override { return audioVisualizerEnabledValue; }
     void setEnabled(bool value) override { enabledValue = value; }
     void setPlayerBusName(const QString &value) override { playerValue = value; }
     void setOffsetMs(int value) override { offsetValue = value; }
+    void setAudioVisualizerEnabled(bool value) override { audioVisualizerEnabledValue = value; }
 
     bool enabledValue = false;
     QString playerValue;
     int offsetValue = 0;
+    bool audioVisualizerEnabledValue = false;
 };
 
 class FakeLyricsPort final : public LyricsPort
@@ -91,6 +94,31 @@ public:
     }
 
     TrackIdentity lastTrack;
+};
+
+class FakeAudioVisualizerPort final : public AudioVisualizerPort
+{
+    Q_OBJECT
+
+public:
+    using AudioVisualizerPort::AudioVisualizerPort;
+
+    void setEnabled(bool enabled) override { enabledValue = enabled; }
+    void setPlayerProcessId(qint64 processId) override { lastProcessId = processId; }
+    VisualizerState state() const override { return currentState; }
+    StreamMatchConfidence matchConfidence() const override { return confidence; }
+    void stop() override
+    {
+        ++stopCount;
+        enabledValue = false;
+        currentState = VisualizerState::Disabled;
+    }
+
+    bool enabledValue = false;
+    qint64 lastProcessId = 0;
+    int stopCount = 0;
+    VisualizerState currentState = VisualizerState::Disabled;
+    StreamMatchConfidence confidence = StreamMatchConfidence::None;
 };
 
 class NullLogSink final : public LogSink
@@ -130,6 +158,8 @@ private slots:
     void restartsLookupAfterReenable();
     void convertsTraditionalLyricsBeforeParsing();
     void keepsSourceLyricsWhenConversionFails();
+    void limitsVisualizerToPlayingNoLyricsState();
+    void keepsVisualizerDisabledByDefault();
 };
 
 void LyricsServiceControllerTest::followsCoreStateTransitions()
@@ -450,6 +480,68 @@ void LyricsServiceControllerTest::keepsSourceLyricsWhenConversionFails()
     const QVariantMap frame = frameSpy.constLast().constFirst().toMap();
     QCOMPARE(frame.value(QStringLiteral("currentText")).toString(),
              QStringLiteral("後來仍是原文"));
+}
+
+void LyricsServiceControllerTest::limitsVisualizerToPlayingNoLyricsState()
+{
+    FakePlayerPort player;
+    player.selected = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selectedAvailable = true;
+    player.selectedProcessId = 4321;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.currentSnapshot.track = {
+        QStringLiteral("Song"), {QStringLiteral("Artist")}, {}, 180000,
+        player.selected, true};
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    settings.audioVisualizerEnabledValue = true;
+    FakeLyricsPort lyrics;
+    FakeAudioVisualizerPort visualizer;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeChineseScriptConverter converter;
+    LyricsServiceController controller(player, settings, logger, converter, &lyrics, &visualizer);
+    controller.start();
+
+    player.publishTrack(player.currentSnapshot.track);
+    QTRY_VERIFY(visualizer.enabledValue);
+    QCOMPARE(visualizer.lastProcessId, 4321);
+
+    emit lyrics.noLyrics();
+    QTRY_VERIFY(visualizer.enabledValue);
+
+    lyrics.publishLyrics(QStringLiteral("[00:01.00]Line"));
+    QTRY_VERIFY(visualizer.stopCount > 0);
+    QCOMPARE(controller.state().value(QStringLiteral("visualizerAvailable")).toBool(), false);
+
+    QVERIFY(controller.setAudioVisualizerEnabled(false));
+    QVERIFY(visualizer.stopCount > 1);
+}
+
+void LyricsServiceControllerTest::keepsVisualizerDisabledByDefault()
+{
+    FakePlayerPort player;
+    player.selected = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selectedAvailable = true;
+    player.selectedProcessId = 4321;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.currentSnapshot.track.searchable = true;
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    settings.audioVisualizerEnabledValue = false;
+    FakeLyricsPort lyrics;
+    FakeAudioVisualizerPort visualizer;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeChineseScriptConverter converter;
+    LyricsServiceController controller(player, settings, logger, converter, &lyrics, &visualizer);
+
+    controller.start();
+    player.publishTrack(player.currentSnapshot.track);
+    emit lyrics.noLyrics();
+
+    QVERIFY(!visualizer.enabledValue);
+    QCOMPARE(controller.state().value(QStringLiteral("visualizerAvailable")).toBool(), false);
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

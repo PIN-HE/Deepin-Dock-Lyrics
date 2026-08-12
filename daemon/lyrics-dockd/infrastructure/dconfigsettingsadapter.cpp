@@ -34,6 +34,12 @@ int DConfigSettingsAdapter::offsetMs() const
                      : m_fallbackOffsetMs;
 }
 
+bool DConfigSettingsAdapter::audioVisualizerEnabled() const
+{
+    return isValid() ? m_config->value(QStringLiteral("audioVisualizerEnabled"), false).toBool()
+                     : m_fallbackAudioVisualizerEnabled;
+}
+
 void DConfigSettingsAdapter::setEnabled(bool enabled)
 {
     m_fallbackEnabled = enabled;
@@ -53,6 +59,13 @@ void DConfigSettingsAdapter::setOffsetMs(int offsetMs)
     m_fallbackOffsetMs = offsetMs;
     if (isValid())
         m_config->setValue(QStringLiteral("offsetMs"), offsetMs);
+}
+
+void DConfigSettingsAdapter::setAudioVisualizerEnabled(bool enabled)
+{
+    m_fallbackAudioVisualizerEnabled = enabled;
+    if (isValid())
+        m_config->setValue(QStringLiteral("audioVisualizerEnabled"), enabled);
 }
 
 bool DConfigSettingsAdapter::isValid() const

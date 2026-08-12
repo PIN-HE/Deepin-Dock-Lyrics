@@ -4,11 +4,13 @@
 #include "ports/playerport.h"
 #include "ports/settingsport.h"
 #include "ports/chinesescriptconverter.h"
+#include "ports/audiovisualizerport.h"
 
 #include <lyricslogging/logengine.h>
 #include <lyricscore/types.h>
 
 #include <QObject>
+#include <QElapsedTimer>
 #include <QVariantMap>
 
 namespace deepin::lyrics {
@@ -40,6 +42,13 @@ public:
                             ChineseScriptConverter &scriptConverter,
                             LyricsPort *lyrics = nullptr,
                             QObject *parent = nullptr);
+    LyricsServiceController(PlayerPort &player,
+                            SettingsPort &settings,
+                            LogEngine &logger,
+                            ChineseScriptConverter &scriptConverter,
+                            LyricsPort *lyrics,
+                            AudioVisualizerPort *visualizer,
+                            QObject *parent = nullptr);
 
     void start();
     QVariantMap state() const;
@@ -48,6 +57,7 @@ public:
     bool setEnabled(bool enabled, QString *errorCode = nullptr);
     bool setPlayer(const QString &busName, QString *errorCode = nullptr);
     bool setOffsetMs(int offsetMs, QString *errorCode = nullptr);
+    bool setAudioVisualizerEnabled(bool enabled, QString *errorCode = nullptr);
     bool searchCandidates(QString *errorCode = nullptr);
     bool selectCandidate(const QString &providerId,
                          const QString &candidateId,
@@ -65,6 +75,9 @@ private slots:
     void onSnapshotChanged(const PlayerSnapshot &snapshot);
     void onSelectedPlayerAvailableChanged(bool available);
     void onTrackChanged(const TrackIdentity &track);
+    void onSelectedPlayerProcessIdChanged(qint64 processId);
+    void onVisualizerStateChanged(VisualizerState state, StreamMatchConfidence confidence);
+    void onVisualizerFrameChanged(const VisualizerFrame &frame);
     void onLyricsReady(const LyricPayload &payload);
     void onNoLyrics();
     void onCandidatesChanged(const QList<LyricCandidate> &candidates);
@@ -76,6 +89,9 @@ private:
     void publishState();
     void publishFrame();
     void clearFrame();
+    void refreshVisualizer();
+    void clearVisualizerFrame();
+    bool shouldVisualize() const;
     bool currentTrackSearchable() const;
     static QString statusName(ServiceStatus status);
 
@@ -83,6 +99,7 @@ private:
     SettingsPort &m_settings;
     LogEngine &m_logger;
     LyricsPort *m_lyrics = nullptr;
+    AudioVisualizerPort *m_visualizer = nullptr;
     ChineseScriptConverter *m_scriptConverter = nullptr;
     QList<PlayerDescriptor> m_players;
     QVariantList m_candidateMaps;
@@ -90,12 +107,17 @@ private:
     ParsedLyrics m_parsedLyrics;
     QVariantMap m_lastPublishedState;
     QVariantMap m_lastPublishedFrame;
+    VisualizerFrame m_visualizerFrame;
+    VisualizerState m_visualizerState = VisualizerState::Disabled;
+    StreamMatchConfidence m_visualizerConfidence = StreamMatchConfidence::None;
     QString m_lyricsSource;
     ServiceStatus m_status = ServiceStatus::Disabled;
     QString m_errorCode;
     int m_offsetMs = 0;
     bool m_enabled = false;
     bool m_sessionHidden = false;
+    bool m_audioVisualizerEnabled = false;
+    QElapsedTimer m_visualizerFrameTimer;
     bool m_trackStable = false;
     bool m_started = false;
 };

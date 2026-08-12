@@ -34,6 +34,17 @@
       "description[zh_CN]": "以毫秒表示的歌词时间偏移。",
       "permissions": "readwrite",
       "visibility": "private"
+    },
+    "audioVisualizerEnabled": {
+      "value": false,
+      "serial": 0,
+      "flags": [],
+      "name": "Show current player's audio visualizer",
+      "name[zh_CN]": "显示当前播放器的音频可视化",
+      "description": "Process only the selected MPRIS player's matching audio stream in memory.",
+      "description[zh_CN]": "仅在内存中处理与所选 MPRIS 播放器精确匹配的音频流。",
+      "permissions": "readwrite",
+      "visibility": "private"
     }
   }
 }

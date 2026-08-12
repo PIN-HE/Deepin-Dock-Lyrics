@@ -18,6 +18,7 @@ private slots:
     void smoothsForwardProgressAndResetsBackward();
     void scrollsOnlyOverflowingText();
     void transitionsLyricsWithAnUpwardBounce();
+    void showsVisualizerOnlyWhenExplicitlyEnabled();
 
 private:
     std::unique_ptr<QObject> createBar();
@@ -120,6 +121,25 @@ void LyricBarTest::transitionsLyricsWithAnUpwardBounce()
     QVERIFY(!outgoingLine->isVisible());
     QCOMPARE(currentLine->y(), 2.0);
     QCOMPARE(currentLine->scale(), 1.0);
+}
+
+void LyricBarTest::showsVisualizerOnlyWhenExplicitlyEnabled()
+{
+    auto bar = createBar();
+    QVERIFY(bar);
+    bar->setProperty("width", 280);
+    bar->setProperty("height", 36);
+    auto *visualizer = bar->findChild<QQuickItem *>(QStringLiteral("audioVisualizer"));
+    QVERIFY(visualizer);
+    QVERIFY(!visualizer->isVisible());
+
+    bar->setProperty("visualizerLevels", QVariantList{0.1, 0.3, 0.7, 1.0});
+    bar->setProperty("visualizerVisible", true);
+    QTRY_VERIFY(visualizer->isVisible());
+    QCOMPARE(bar->findChild<QQuickItem *>(QStringLiteral("currentLyricLine"))->isVisible(), false);
+
+    bar->setProperty("visualizerVisible", false);
+    QTRY_VERIFY(!visualizer->isVisible());
 }
 
 QTEST_MAIN(LyricBarTest)

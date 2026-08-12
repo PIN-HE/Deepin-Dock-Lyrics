@@ -36,6 +36,8 @@ add_library(lyrics-service STATIC
     infrastructure/openccchinesescriptconverter.h
     infrastructure/pipewirestreammatcher.cpp
     infrastructure/pipewirestreammatcher.h
+    infrastructure/pipewireaudiovisualizeradapter.cpp
+    infrastructure/pipewireaudiovisualizeradapter.h
     infrastructure/qtnetworktransport.cpp
     infrastructure/qtnetworktransport.h
     infrastructure/sqlitelyricscache.cpp

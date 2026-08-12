@@ -34,9 +34,11 @@ public:
     bool enabled() const override { return enabledValue; }
     QString playerBusName() const override { return {}; }
     int offsetMs() const override { return offsetValue; }
+    bool audioVisualizerEnabled() const override { return false; }
     void setEnabled(bool value) override { enabledValue = value; }
     void setPlayerBusName(const QString &) override { }
     void setOffsetMs(int value) override { offsetValue = value; }
+    void setAudioVisualizerEnabled(bool) override { }
 
     bool enabledValue = false;
     int offsetValue = 0;

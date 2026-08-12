@@ -5,6 +5,7 @@
 #include "infrastructure/lrclibprovider.h"
 #include "infrastructure/mprisplayeradapter.h"
 #include "infrastructure/openccchinesescriptconverter.h"
+#include "infrastructure/pipewireaudiovisualizeradapter.h"
 #include "infrastructure/qtnetworktransport.h"
 #include "infrastructure/sqlitelyricscache.h"
 
@@ -56,6 +57,7 @@ int main(int argc, char *argv[])
     SqliteLyricsCache cache;
     LrclibLyricsAdapter lyrics(provider, cache, logger);
     OpenCcChineseScriptConverter scriptConverter;
+    PipeWireAudioVisualizerAdapter visualizer;
     if (!scriptConverter.isValid()) {
         logger.write(LogLevel::Critical, QStringLiteral("daemon"),
                      QStringLiteral("service_start_failed"),
@@ -65,7 +67,7 @@ int main(int argc, char *argv[])
     if (parser.isSet(QStringLiteral("player")))
         settings.setPlayerBusName(parser.value(QStringLiteral("player")));
 
-    LyricsServiceController controller(player, settings, logger, scriptConverter, &lyrics);
+    LyricsServiceController controller(player, settings, logger, scriptConverter, &lyrics, &visualizer);
     LyricsDbusAdapter dbus(controller, QDBusConnection::sessionBus());
     QString errorCode;
     if (!dbus.registerService(&errorCode)) {

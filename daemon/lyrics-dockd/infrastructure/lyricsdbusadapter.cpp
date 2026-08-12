@@ -128,6 +128,13 @@ void LyricsDbusAdapter::SetOffsetMs(int offsetMs)
         replyWithError(errorCode);
 }
 
+void LyricsDbusAdapter::SetAudioVisualizerEnabled(bool enabled)
+{
+    QString errorCode;
+    if (!m_controller.setAudioVisualizerEnabled(enabled, &errorCode))
+        replyWithError(errorCode);
+}
+
 void LyricsDbusAdapter::SearchCandidates()
 {
     QString errorCode;

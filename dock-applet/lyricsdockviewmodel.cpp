@@ -111,6 +111,16 @@ double LyricsDockViewModel::lineProgress() const
     return qBound(0.0, m_frame.value(QStringLiteral("lineProgress")).toDouble(), 1.0);
 }
 
+bool LyricsDockViewModel::visualizerAvailable() const
+{
+    return m_state.value(QStringLiteral("visualizerAvailable")).toBool();
+}
+
+QVariantList LyricsDockViewModel::visualizerLevels() const
+{
+    return m_state.value(QStringLiteral("visualizerLevels")).toList();
+}
+
 void LyricsDockViewModel::setSessionHidden(bool hidden)
 {
     if (!m_serviceAvailable)

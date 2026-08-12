@@ -104,6 +104,12 @@ void SettingsViewModel::setOffsetMs(int offsetMs)
     callVoid(QStringLiteral("SetOffsetMs"), {offsetMs}, QStringLiteral("offset"));
 }
 
+void SettingsViewModel::setAudioVisualizerEnabled(bool enabled)
+{
+    callVoid(QStringLiteral("SetAudioVisualizerEnabled"), {enabled},
+             QStringLiteral("audio-visualizer"));
+}
+
 void SettingsViewModel::searchCandidates()
 {
     callVoid(QStringLiteral("SearchCandidates"), {}, QStringLiteral("search"));

@@ -39,6 +39,32 @@ QString timingName(TimingCapability timing)
     return QStringLiteral("none");
 }
 
+QString visualizerStateName(VisualizerState state)
+{
+    switch (state) {
+    case VisualizerState::Disabled:
+        return QStringLiteral("disabled");
+    case VisualizerState::WaitingForPlayer:
+        return QStringLiteral("waiting-for-player");
+    case VisualizerState::ResolvingAudioStream:
+        return QStringLiteral("resolving-audio-stream");
+    case VisualizerState::Active:
+        return QStringLiteral("active");
+    case VisualizerState::Unavailable:
+        return QStringLiteral("unavailable");
+    }
+    return QStringLiteral("unavailable");
+}
+
+QVariantList visualizerLevels(const VisualizerFrame &frame)
+{
+    QVariantList levels;
+    levels.reserve(visualizerBandCount);
+    for (const float level : frame.levels)
+        levels.append(qBound(0.0, double(level), 1.0));
+    return levels;
+}
+
 QVariantMap frameMap(const LyricFrame &frame, const QString &source)
 {
     return {
@@ -83,6 +109,8 @@ LyricsServiceController::LyricsServiceController(PlayerPort &player,
             this, &LyricsServiceController::onSnapshotChanged);
     connect(&m_player, &PlayerPort::selectedPlayerAvailableChanged,
             this, &LyricsServiceController::onSelectedPlayerAvailableChanged);
+    connect(&m_player, &PlayerPort::selectedPlayerProcessIdChanged,
+            this, &LyricsServiceController::onSelectedPlayerProcessIdChanged);
     connect(&m_player, &PlayerPort::trackChanged,
             this, &LyricsServiceController::onTrackChanged);
 
@@ -106,6 +134,24 @@ LyricsServiceController::LyricsServiceController(PlayerPort &player,
     m_scriptConverter = &scriptConverter;
 }
 
+LyricsServiceController::LyricsServiceController(PlayerPort &player,
+                                                 SettingsPort &settings,
+                                                 LogEngine &logger,
+                                                 ChineseScriptConverter &scriptConverter,
+                                                 LyricsPort *lyrics,
+                                                 AudioVisualizerPort *visualizer,
+                                                 QObject *parent)
+    : LyricsServiceController(player, settings, logger, scriptConverter, lyrics, parent)
+{
+    m_visualizer = visualizer;
+    if (m_visualizer) {
+        connect(m_visualizer, &AudioVisualizerPort::stateChanged,
+                this, &LyricsServiceController::onVisualizerStateChanged);
+        connect(m_visualizer, &AudioVisualizerPort::frameChanged,
+                this, &LyricsServiceController::onVisualizerFrameChanged);
+    }
+}
+
 void LyricsServiceController::start()
 {
     if (m_started)
@@ -113,11 +159,13 @@ void LyricsServiceController::start()
     m_started = true;
     m_enabled = m_settings.enabled();
     m_offsetMs = std::clamp(m_settings.offsetMs(), -10000, 10000);
+    m_audioVisualizerEnabled = m_settings.audioVisualizerEnabled();
     m_player.setSelectedPlayer(m_settings.playerBusName());
     m_player.start();
     m_players = m_player.availablePlayers();
     m_snapshot = m_player.snapshot();
     refreshStatus();
+    refreshVisualizer();
     publishState();
 }
 
@@ -135,6 +183,10 @@ QVariantMap LyricsServiceController::state() const
         {QStringLiteral("trackAlbum"), track.album},
         {QStringLiteral("durationMs"), track.durationMs},
         {QStringLiteral("offsetMs"), m_offsetMs},
+        {QStringLiteral("audioVisualizerEnabled"), m_audioVisualizerEnabled},
+        {QStringLiteral("visualizerState"), visualizerStateName(m_visualizerState)},
+        {QStringLiteral("visualizerAvailable"), m_visualizerState == VisualizerState::Active},
+        {QStringLiteral("visualizerLevels"), visualizerLevels(m_visualizerFrame)},
         {QStringLiteral("errorCode"), m_errorCode},
         {QStringLiteral("canSearchCandidates"), m_enabled && currentTrackSearchable()},
         {QStringLiteral("lyricsSource"), m_lyricsSource},
@@ -162,6 +214,7 @@ bool LyricsServiceController::setEnabled(bool enabled, QString *)
             m_lyrics->search(m_snapshot.track);
     }
     refreshStatus();
+    refreshVisualizer();
     publishState();
     return true;
 }
@@ -184,6 +237,7 @@ bool LyricsServiceController::setPlayer(const QString &busName, QString *errorCo
     m_player.setSelectedPlayer(busName);
     m_snapshot = m_player.snapshot();
     refreshStatus();
+    refreshVisualizer();
     publishState();
     return true;
 }
@@ -200,6 +254,17 @@ bool LyricsServiceController::setOffsetMs(int offsetMs, QString *errorCode)
     m_offsetMs = offsetMs;
     m_settings.setOffsetMs(offsetMs);
     publishFrame();
+    publishState();
+    return true;
+}
+
+bool LyricsServiceController::setAudioVisualizerEnabled(bool enabled, QString *)
+{
+    if (m_audioVisualizerEnabled == enabled)
+        return true;
+    m_audioVisualizerEnabled = enabled;
+    m_settings.setAudioVisualizerEnabled(enabled);
+    refreshVisualizer();
     publishState();
     return true;
 }
@@ -281,6 +346,7 @@ void LyricsServiceController::onSnapshotChanged(const PlayerSnapshot &snapshot)
         publishFrame();
     }
     refreshStatus();
+    refreshVisualizer();
     publishState();
 }
 
@@ -291,6 +357,7 @@ void LyricsServiceController::onSelectedPlayerAvailableChanged(bool)
         clearFrame();
     }
     refreshStatus();
+    refreshVisualizer();
     publishState();
 }
 
@@ -306,6 +373,7 @@ void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
     } else {
         refreshStatus();
     }
+    refreshVisualizer();
     publishState();
 }
 
@@ -329,10 +397,12 @@ void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
     if (m_parsedLyrics.timing == TimingCapability::None) {
         clearFrame();
         setStatus(ServiceStatus::NoLyrics);
+        refreshVisualizer();
         publishState();
         return;
     }
     setStatus(ServiceStatus::LyricsReady);
+    refreshVisualizer();
     publishState();
     publishFrame();
 }
@@ -341,6 +411,7 @@ void LyricsServiceController::onNoLyrics()
 {
     clearFrame();
     setStatus(ServiceStatus::NoLyrics);
+    refreshVisualizer();
     publishState();
 }
 
@@ -369,6 +440,37 @@ void LyricsServiceController::onCandidatesChanged(const QList<LyricCandidate> &c
 void LyricsServiceController::onLyricsFailed(const QString &errorCode)
 {
     setStatus(ServiceStatus::Error, stableErrorCode(errorCode));
+    refreshVisualizer();
+    publishState();
+}
+
+void LyricsServiceController::onSelectedPlayerProcessIdChanged(qint64)
+{
+    refreshVisualizer();
+}
+
+void LyricsServiceController::onVisualizerStateChanged(VisualizerState state,
+                                                        StreamMatchConfidence confidence)
+{
+    if (m_visualizerState == state && m_visualizerConfidence == confidence)
+        return;
+    m_visualizerState = state;
+    m_visualizerConfidence = confidence;
+    if (state != VisualizerState::Active)
+        clearVisualizerFrame();
+    publishState();
+}
+
+void LyricsServiceController::onVisualizerFrameChanged(const VisualizerFrame &frame)
+{
+    if (!shouldVisualize() || m_visualizerState != VisualizerState::Active)
+        return;
+    // PipeWire callbacks can exceed the Dock's useful refresh rate; publish at most 20 FPS.
+    // PipeWire 回调可能快于 Dock 的有效刷新率，因此最多以 20 FPS 发布。
+    if (m_visualizerFrameTimer.isValid() && m_visualizerFrameTimer.elapsed() < 50)
+        return;
+    m_visualizerFrameTimer.restart();
+    m_visualizerFrame = frame;
     publishState();
 }
 
@@ -449,6 +551,31 @@ void LyricsServiceController::clearFrame()
         return;
     m_lastPublishedFrame = emptyFrame;
     emit frameChanged(emptyFrame);
+}
+
+void LyricsServiceController::refreshVisualizer()
+{
+    if (!m_visualizer)
+        return;
+    if (!m_enabled || !m_audioVisualizerEnabled || !shouldVisualize()) {
+        m_visualizer->stop();
+        clearVisualizerFrame();
+        return;
+    }
+    m_visualizer->setEnabled(true);
+    m_visualizer->setPlayerProcessId(m_player.selectedPlayerProcessId());
+}
+
+void LyricsServiceController::clearVisualizerFrame()
+{
+    m_visualizerFrame = {};
+}
+
+bool LyricsServiceController::shouldVisualize() const
+{
+    return m_player.selectedPlayerAvailable()
+        && m_snapshot.playbackStatus == PlaybackStatus::Playing
+        && (m_status == ServiceStatus::LookingUpLyrics || m_status == ServiceStatus::NoLyrics);
 }
 
 bool LyricsServiceController::currentTrackSearchable() const
