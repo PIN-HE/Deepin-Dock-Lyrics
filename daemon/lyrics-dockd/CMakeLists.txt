@@ -24,8 +24,18 @@ add_library(lyrics-service STATIC
     infrastructure/dconfigsettingsadapter.h
     infrastructure/lyricsdbusadapter.cpp
     infrastructure/lyricsdbusadapter.h
+    infrastructure/lrcliblyricsadapter.cpp
+    infrastructure/lrcliblyricsadapter.h
+    infrastructure/lrclibprovider.cpp
+    infrastructure/lrclibprovider.h
     infrastructure/mprisplayeradapter.cpp
     infrastructure/mprisplayeradapter.h
+    infrastructure/qtnetworktransport.cpp
+    infrastructure/qtnetworktransport.h
+    infrastructure/sqlitelyricscache.cpp
+    infrastructure/sqlitelyricscache.h
+    ports/httptransport.h
+    ports/lyricscache.h
     ports/lyricsport.h
     ports/playerport.h
     ports/settingsport.h
@@ -45,6 +55,8 @@ target_link_libraries(lyrics-service
         Lyrics::Mpris
         Qt6::Core
         Qt6::DBus
+        Qt6::Network
+        Qt6::Sql
         Dtk6::Core
 )
 

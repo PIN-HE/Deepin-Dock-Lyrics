@@ -175,7 +175,7 @@ bool LyricsServiceController::searchCandidates(QString *errorCode)
     setStatus(ServiceStatus::LookingUpLyrics);
     publishState();
     if (m_lyrics)
-        m_lyrics->search(m_snapshot.track);
+        m_lyrics->searchCandidates(m_snapshot.track);
     return true;
 }
 
@@ -267,7 +267,7 @@ void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
     publishState();
 }
 
-void LyricsServiceController::onLyricsReady(const ParsedLyrics &lyrics)
+void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
 {
     setStatus(ServiceStatus::LyricsReady);
     publishState();
@@ -277,7 +277,7 @@ void LyricsServiceController::onLyricsReady(const ParsedLyrics &lyrics)
         {QStringLiteral("translationText"), QString()},
         {QStringLiteral("lineIndex"), -1},
         {QStringLiteral("lineProgress"), 0.0},
-        {QStringLiteral("timingCapability"), timingName(lyrics.timing)},
+        {QStringLiteral("timingCapability"), timingName(payload.timing)},
         {QStringLiteral("source"), QStringLiteral("lrclib")},
         {QStringLiteral("trackKey"), QString()},
     };

@@ -57,7 +57,7 @@ private slots:
     void onSnapshotChanged(const PlayerSnapshot &snapshot);
     void onSelectedPlayerAvailableChanged(bool available);
     void onTrackChanged(const TrackIdentity &track);
-    void onLyricsReady(const ParsedLyrics &lyrics);
+    void onLyricsReady(const LyricPayload &payload);
     void onNoLyrics();
     void onCandidatesChanged(const QList<LyricCandidate> &candidates);
     void onLyricsFailed(const QString &errorCode);

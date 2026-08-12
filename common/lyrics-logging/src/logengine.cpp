@@ -39,6 +39,14 @@ QVariant safeFieldValue(const QString &name, const QVariant &value)
         return std::clamp(value.toInt(), 0, 1000);
     if (name == QStringLiteral("offset_ms"))
         return std::clamp(value.toInt(), -10000, 10000);
+    if (name == QStringLiteral("record_id")) {
+        const QString recordId = value.toString();
+        const bool valid = !recordId.isEmpty() && recordId.size() <= 32
+            && std::all_of(recordId.cbegin(), recordId.cend(), [](QChar character) {
+                   return character.isDigit();
+               });
+        return valid ? recordId : QStringLiteral("redacted");
+    }
     return {};
 }
 
@@ -99,6 +107,7 @@ QSet<QString> LogEngine::allowedFieldNames()
         QStringLiteral("session_hidden"),
         QStringLiteral("offset_ms"),
         QStringLiteral("result_code"),
+        QStringLiteral("record_id"),
     };
 }
 

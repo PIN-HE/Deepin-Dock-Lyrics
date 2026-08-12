@@ -2,6 +2,7 @@
 .agents/
 .codebase-memory/
 .codex/
+.reasonix/
 .unioncode/
 
 # CMake and Qt build output

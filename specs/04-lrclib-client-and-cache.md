@@ -1,6 +1,6 @@
 # S04 LRCLIB 客户端、匹配与缓存
 
-**状态：** 待实施
+**状态：** 已完成（2026-08-12）
 
 **前置：** S00、S03
 **后续：** S05、S07
@@ -64,9 +64,40 @@ flowchart TD
 - 日志只记录 LRCLIB 记录 ID、结果类别和错误码；不得记录完整标题、歌手、歌词或 URL 查询串。
 - 设置页的“清除本地缓存”仅删除这个数据库；删除前必须二次确认。
 
+## 实现架构
+
+```mermaid
+flowchart LR
+    CTRL["LyricsServiceController"] --> PORT["LyricsPort"]
+    PORT --> ORCH["LrclibLyricsAdapter"]
+    ORCH --> PROVIDER["LRCLIBProvider"]
+    PROVIDER --> HTTP["HttpTransport"]
+    HTTP --> QTNET["QtNetworkTransport"]
+    QTNET --> API["lrclib.net"]
+    ORCH --> CACHE["LyricsCache"]
+    CACHE --> SQLITE["SqliteLyricsCache"]
+    ORCH --> MATCH["纯函数候选评分"]
+    ORCH --> LOG["隐私白名单日志"]
+```
+
+- `LyricProvider` 输出经过校验的 `ProviderRecord` / `LyricPayload`；S04 不解析 LRC，时间轴解析继续由 S05 负责。
+- 自动曲目流程使用 `LyricsPort::search()`，优先查成功/负缓存；设置页的显式重试使用 `searchCandidates()`，可绕过负缓存但不能绕过 429 冷却。
+- 用户确认只能选择当前一轮已发布的 LRCLIB 候选 ID，旧候选或任意 ID 不会触发下载。
+- HTTP 和数据库均位于基础设施层；测试使用 fake transport 与临时 SQLite，不连接真实 LRCLIB。
+
 ## 验收标准
 
 1. 单元测试覆盖精确命中、404 后搜索、歧义候选、未知时长、429、网络失败、负缓存和缓存命中。
 2. 同一曲目连续播放期间网络请求数为 0；切歌后的单次流程不违反 300 ms 间隔。
 3. 每个请求均带有效 `User-Agent`，429 不早于 `Retry-After` 指定时间重试。
 4. 缓存命中在离线状态仍可返回已保存歌词；缓存和日志中不出现认证信息或原始完整 HTTP 响应。
+
+## 实现记录
+
+- 扩展 `Lyrics::Core` provider 契约，新增候选评分与排序纯函数；标题、艺人、专辑和时长权重集中实现，`>=0.85` 且时长差不超过 2 秒才自动确认，`0.60-0.84` 发布给用户。
+- `LRCLIBProvider` 实现 `/api/get`、`/api/search`、`/api/get/{id}`，请求严格串行且间隔至少 300ms；每次带产品版本与项目地址 `User-Agent`，超时为 10 秒。
+- 精确查询仅在 404 时进入搜索；5xx/网络失败最多进行两次指数退避重试，重试期间保持队列顺序；429 同时支持秒数和 HTTP 日期形式的 `Retry-After`，冷却持久化到 SQLite。
+- `SqliteLyricsCache` 使用参数化 SQL、事务、WAL、schema version 1、30 天成功缓存、7 天负缓存和用户确认映射。损坏文件改名为带 UTC 时间戳的 `.corrupt-*` 后重建。
+- daemon 已组装 `QtNetworkTransport -> LRCLIBProvider -> LrclibLyricsAdapter -> LyricsServiceController`，不接入任何其他歌词源、账号、Cookie 或令牌。
+- 日志仅允许数字 LRCLIB 记录 ID、结果类别与稳定错误码；标题、歌手、专辑、歌词、URL 查询和原始 HTTP 响应不会进入日志。
+- 验证命令：`cmake -S . -B build-s04-verify -DCMAKE_BUILD_TYPE=Debug`、`cmake --build build-s04-verify -j2`、`ctest --test-dir build-s04-verify --output-on-failure`；8 项测试全部通过。

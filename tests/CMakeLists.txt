@@ -93,3 +93,33 @@ add_test(
     COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:lyrics-dbus-adapter-test>
 )
 set_tests_properties(lyrics-dbus-adapter-test PROPERTIES TIMEOUT 20)
+
+add_executable(lrclib-provider-test
+    test_lrclibprovider.cpp
+)
+
+target_link_libraries(lrclib-provider-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Network
+        Qt6::Test
+)
+
+add_test(NAME lrclib-provider-test COMMAND lrclib-provider-test)
+set_tests_properties(lrclib-provider-test PROPERTIES TIMEOUT 20)
+
+add_executable(lrclib-lyrics-adapter-test
+    test_lrcliblyricsadapter.cpp
+)
+
+target_link_libraries(lrclib-lyrics-adapter-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Sql
+        Qt6::Test
+)
+
+add_test(NAME lrclib-lyrics-adapter-test COMMAND lrclib-lyrics-adapter-test)
+set_tests_properties(lrclib-lyrics-adapter-test PROPERTIES TIMEOUT 20)

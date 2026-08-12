@@ -13,6 +13,11 @@ It follows a user-selected, native Linux MPRIS music player and renders line-syn
 
 When online lyric lookup is enabled, the daemon will send the track title, artist, album, and duration to LRCLIB. The product has no account login, telemetry, or secondary lyric provider.
 
+LRCLIB requests are serialized and cached locally in SQLite. A stable normalized track key,
+confirmed LRCLIB record, raw synced/plain lyrics, negative lookup result, and rate-limit cooldown
+may be stored in the application's cache directory. The cache is never uploaded and can be cleared
+through the service. Tests use fake transports and do not contact or consume quota from LRCLIB.
+
 ## Build prerequisites
 
 Target platform: deepin/UOS v25 with Qt 6, DTK6, and `dde-shell` 2.x.

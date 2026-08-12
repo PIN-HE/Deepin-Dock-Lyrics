@@ -55,6 +55,7 @@ void LogEngineTest::redactsFreeFormValues()
     engine.write(LogLevel::Info, QStringLiteral("track title"), QStringLiteral("event with spaces"),
                  {{QStringLiteral("error_code"), QStringLiteral("private song title")},
                   {QStringLiteral("result_code"), QString()},
+                  {QStringLiteral("record_id"), QStringLiteral("private song title")},
                   {QStringLiteral("offset_ms"), 20000},
                   {QStringLiteral("player_available_count"), -5}});
 
@@ -63,8 +64,15 @@ void LogEngineTest::redactsFreeFormValues()
     QCOMPARE(sink.lastEvent.safeFields.value(QStringLiteral("error_code")).toString(),
              QStringLiteral("redacted"));
     QVERIFY(!sink.lastEvent.safeFields.contains(QStringLiteral("result_code")));
+    QCOMPARE(sink.lastEvent.safeFields.value(QStringLiteral("record_id")).toString(),
+             QStringLiteral("redacted"));
     QCOMPARE(sink.lastEvent.safeFields.value(QStringLiteral("offset_ms")).toInt(), 10000);
     QCOMPARE(sink.lastEvent.safeFields.value(QStringLiteral("player_available_count")).toInt(), 0);
+
+    engine.write(LogLevel::Info, QStringLiteral("lrclib"), QStringLiteral("record_confirmed"),
+                 {{QStringLiteral("record_id"), QStringLiteral("1000000")}});
+    QCOMPARE(sink.lastEvent.safeFields.value(QStringLiteral("record_id")).toString(),
+             QStringLiteral("1000000"));
 }
 
 QTEST_MAIN(LogEngineTest)

@@ -1,7 +1,11 @@
 #include "application/lyricsservicecontroller.h"
 #include "infrastructure/dconfigsettingsadapter.h"
 #include "infrastructure/lyricsdbusadapter.h"
+#include "infrastructure/lrcliblyricsadapter.h"
+#include "infrastructure/lrclibprovider.h"
 #include "infrastructure/mprisplayeradapter.h"
+#include "infrastructure/qtnetworktransport.h"
+#include "infrastructure/sqlitelyricscache.h"
 
 #include <lyricslogging/logengine.h>
 
@@ -10,6 +14,8 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDBusConnection>
+#include <QDir>
+#include <QStandardPaths>
 #include <QTextStream>
 
 using namespace deepin::lyrics;
@@ -19,9 +25,6 @@ int main(int argc, char *argv[])
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("lyrics-dockd"));
     app.setApplicationVersion(QStringLiteral("0.1.0"));
-
-    Dtk::Core::DLogManager::registerConsoleAppender();
-    Dtk::Core::DLogManager::registerFileAppender();
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Deepin Dock Lyrics background service"));
@@ -38,14 +41,22 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    QDir().mkpath(QStandardPaths::writableLocation(QStandardPaths::CacheLocation));
+    Dtk::Core::DLogManager::registerConsoleAppender();
+    Dtk::Core::DLogManager::registerFileAppender();
+
     QtLogSink logSink;
     LogEngine logger(logSink);
     DConfigSettingsAdapter settings;
     MprisPlayerAdapter player(QDBusConnection::sessionBus());
+    QtNetworkTransport transport;
+    LRCLIBProvider provider(transport);
+    SqliteLyricsCache cache;
+    LrclibLyricsAdapter lyrics(provider, cache, logger);
     if (parser.isSet(QStringLiteral("player")))
         settings.setPlayerBusName(parser.value(QStringLiteral("player")));
 
-    LyricsServiceController controller(player, settings, logger);
+    LyricsServiceController controller(player, settings, logger, &lyrics);
     LyricsDbusAdapter dbus(controller, QDBusConnection::sessionBus());
     QString errorCode;
     if (!dbus.registerService(&errorCode)) {
