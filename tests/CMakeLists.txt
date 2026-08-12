@@ -24,6 +24,19 @@ target_link_libraries(audio-spectrum-analyzer-test
 
 add_test(NAME audio-spectrum-analyzer-test COMMAND audio-spectrum-analyzer-test)
 
+add_executable(pipewire-stream-matcher-test
+    test_pipewirestreammatcher.cpp
+)
+
+target_link_libraries(pipewire-stream-matcher-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME pipewire-stream-matcher-test COMMAND pipewire-stream-matcher-test)
+
 add_executable(lrc-parser-test
     test_lrcparser.cpp
 )
