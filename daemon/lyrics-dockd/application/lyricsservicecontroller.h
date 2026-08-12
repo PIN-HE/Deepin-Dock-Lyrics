@@ -5,6 +5,7 @@
 #include "ports/settingsport.h"
 
 #include <lyricslogging/logengine.h>
+#include <lyricscore/types.h>
 
 #include <QObject>
 #include <QVariantMap>
@@ -66,6 +67,7 @@ private:
     void refreshStatus();
     void setStatus(ServiceStatus status, const QString &errorCode = {});
     void publishState();
+    void publishFrame();
     void clearFrame();
     bool currentTrackSearchable() const;
     static QString statusName(ServiceStatus status);
@@ -76,7 +78,10 @@ private:
     LyricsPort *m_lyrics = nullptr;
     QList<PlayerDescriptor> m_players;
     PlayerSnapshot m_snapshot;
+    ParsedLyrics m_parsedLyrics;
     QVariantMap m_lastPublishedState;
+    QVariantMap m_lastPublishedFrame;
+    QString m_lyricsSource;
     ServiceStatus m_status = ServiceStatus::Disabled;
     QString m_errorCode;
     int m_offsetMs = 0;

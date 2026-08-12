@@ -1,4 +1,6 @@
 add_library(lyrics-core STATIC
+    src/lrcparser.cpp
+    src/lyricsync.cpp
     src/normalization.cpp
 )
 

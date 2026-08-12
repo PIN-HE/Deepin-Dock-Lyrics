@@ -66,6 +66,31 @@ public:
     int offsetValue = 0;
 };
 
+class FakeLyricsPort final : public LyricsPort
+{
+    Q_OBJECT
+
+public:
+    using LyricsPort::LyricsPort;
+
+    void search(const TrackIdentity &track) override { lastTrack = track; }
+    void searchCandidates(const TrackIdentity &) override { }
+    void selectCandidate(const QString &, const QString &) override { }
+    void clearCache() override { }
+
+    void publishLyrics(const QString &syncedLyrics, const QString &plainLyrics = {})
+    {
+        LyricPayload payload;
+        payload.providerId = QStringLiteral("lrclib");
+        payload.syncedLyrics = syncedLyrics;
+        payload.plainLyrics = plainLyrics;
+        payload.timing = syncedLyrics.isEmpty() ? TimingCapability::Plain : TimingCapability::Line;
+        emit lyricsReady(payload);
+    }
+
+    TrackIdentity lastTrack;
+};
+
 class NullLogSink final : public LogSink
 {
 public:
@@ -83,6 +108,8 @@ private slots:
     void suppressesPositionOnlyStateUpdates();
     void waitsForStableTrackBeforeLookup();
     void clearsFrameWhenRawTrackChanges();
+    void publishesFramesForPositionPauseSeekAndOffset();
+    void restartsLookupAfterReenable();
 };
 
 void LyricsServiceControllerTest::followsCoreStateTransitions()
@@ -91,7 +118,8 @@ void LyricsServiceControllerTest::followsCoreStateTransitions()
     MemorySettingsPort settings;
     NullLogSink sink;
     LogEngine logger(sink);
-    LyricsServiceController controller(player, settings, logger);
+    FakeLyricsPort lyrics;
+    LyricsServiceController controller(player, settings, logger, &lyrics);
 
     controller.start();
     QVERIFY(player.started);
@@ -211,7 +239,8 @@ void LyricsServiceControllerTest::clearsFrameWhenRawTrackChanges()
     MemorySettingsPort settings;
     NullLogSink sink;
     LogEngine logger(sink);
-    LyricsServiceController controller(player, settings, logger);
+    FakeLyricsPort lyrics;
+    LyricsServiceController controller(player, settings, logger, &lyrics);
     QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
     controller.start();
     controller.setEnabled(true);
@@ -228,13 +257,108 @@ void LyricsServiceControllerTest::clearsFrameWhenRawTrackChanges()
     track.durationMs = 90000;
     track.playerBusName = player.selected;
     track.searchable = true;
-    player.publishRawTrack(track);
+    player.publishTrack(track);
+    player.currentSnapshot.positionMs = 1500;
+    emit player.snapshotChanged(player.currentSnapshot);
+    lyrics.publishLyrics(QStringLiteral("[00:01.00]Old lyric\n[00:03.00]Next lyric"));
+    frameSpy.clear();
+
+    TrackIdentity replacement = track;
+    replacement.title = QStringLiteral("Replacement title");
+    player.publishRawTrack(replacement);
 
     QCOMPARE(frameSpy.count(), 1);
     const QVariantMap frame = frameSpy.constFirst().constFirst().toMap();
     QCOMPARE(frame.value(QStringLiteral("currentText")).toString(), QString());
     QCOMPARE(frame.value(QStringLiteral("lineIndex")).toInt(), -1);
     QCOMPARE(frame.value(QStringLiteral("timingCapability")).toString(), QStringLiteral("none"));
+}
+
+void LyricsServiceControllerTest::publishesFramesForPositionPauseSeekAndOffset()
+{
+    FakePlayerPort player;
+    MemorySettingsPort settings;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeLyricsPort lyrics;
+    LyricsServiceController controller(player, settings, logger, &lyrics);
+    QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
+
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selected = settings.playerValue;
+    player.players = {{player.selected, QStringLiteral("Demo"), {}, true}};
+    player.selectedAvailable = true;
+    controller.start();
+
+    TrackIdentity track;
+    track.title = QStringLiteral("Private title");
+    track.artists = {QStringLiteral("Private artist")};
+    track.durationMs = 90000;
+    track.playerBusName = player.selected;
+    track.searchable = true;
+    player.currentSnapshot.positionMs = 1500;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.publishTrack(track);
+    lyrics.publishLyrics(QStringLiteral("[00:01.00]First\n[00:03.00]Second\n[00:05.00]Last"));
+
+    QVariantMap frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(), QStringLiteral("First"));
+    QCOMPARE(frame.value(QStringLiteral("lineProgress")).toDouble(), 0.25);
+    QCOMPARE(frame.value(QStringLiteral("timingCapability")).toString(), QStringLiteral("line"));
+    QCOMPARE(frame.value(QStringLiteral("source")).toString(), QStringLiteral("lrclib"));
+    QVERIFY(!frame.value(QStringLiteral("trackKey")).toString().isEmpty());
+
+    const int playingFrameCount = frameSpy.count();
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Paused;
+    emit player.snapshotChanged(player.currentSnapshot);
+    QCOMPARE(frameSpy.count(), playingFrameCount);
+
+    player.currentSnapshot.positionMs = 5200;
+    emit player.snapshotChanged(player.currentSnapshot);
+    frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(), QStringLiteral("Last"));
+    QCOMPARE(frame.value(QStringLiteral("lineProgress")).toDouble(), 1.0);
+
+    player.currentSnapshot.positionMs = 1500;
+    emit player.snapshotChanged(player.currentSnapshot);
+    frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(), QStringLiteral("First"));
+
+    QVERIFY(controller.setOffsetMs(1500));
+    frame = frameSpy.constLast().constFirst().toMap();
+    QCOMPARE(frame.value(QStringLiteral("currentText")).toString(), QStringLiteral("Second"));
+    QCOMPARE(frame.value(QStringLiteral("lineProgress")).toDouble(), 0.0);
+}
+
+void LyricsServiceControllerTest::restartsLookupAfterReenable()
+{
+    FakePlayerPort player;
+    MemorySettingsPort settings;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    FakeLyricsPort lyrics;
+    LyricsServiceController controller(player, settings, logger, &lyrics);
+
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.demo");
+    player.selected = settings.playerValue;
+    player.players = {{player.selected, QStringLiteral("Demo"), {}, true}};
+    player.selectedAvailable = true;
+    controller.start();
+
+    TrackIdentity track;
+    track.title = QStringLiteral("Private title");
+    track.playerBusName = player.selected;
+    track.searchable = true;
+    player.publishTrack(track);
+    QCOMPARE(lyrics.lastTrack.title, track.title);
+
+    lyrics.lastTrack = {};
+    QVERIFY(controller.setEnabled(false));
+    QVERIFY(controller.setEnabled(true));
+    QCOMPARE(controller.status(), ServiceStatus::LookingUpLyrics);
+    QCOMPARE(lyrics.lastTrack.title, track.title);
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

@@ -11,6 +11,36 @@ target_link_libraries(lyrics-core-test
 
 add_test(NAME lyrics-core-test COMMAND lyrics-core-test)
 
+add_executable(lrc-parser-test
+    test_lrcparser.cpp
+)
+
+target_compile_definitions(lrc-parser-test PRIVATE
+    TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures"
+)
+
+target_link_libraries(lrc-parser-test
+    PRIVATE
+        Lyrics::Core
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME lrc-parser-test COMMAND lrc-parser-test)
+
+add_executable(lyric-sync-test
+    test_lyricsync.cpp
+)
+
+target_link_libraries(lyric-sync-test
+    PRIVATE
+        Lyrics::Core
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME lyric-sync-test COMMAND lyric-sync-test)
+
 add_executable(lyrics-ui-test
     test_lyricstokens.cpp
 )

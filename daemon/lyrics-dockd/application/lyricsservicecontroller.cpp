@@ -1,5 +1,9 @@
 #include "application/lyricsservicecontroller.h"
 
+#include <lyricscore/lrcparser.h>
+#include <lyricscore/lyricsync.h>
+#include <lyricscore/normalization.h>
+
 #include <QSet>
 
 #include <algorithm>
@@ -33,6 +37,20 @@ QString timingName(TimingCapability timing)
         return QStringLiteral("none");
     }
     return QStringLiteral("none");
+}
+
+QVariantMap frameMap(const LyricFrame &frame, const QString &source)
+{
+    return {
+        {QStringLiteral("currentText"), frame.currentText},
+        {QStringLiteral("secondaryText"), frame.secondaryText},
+        {QStringLiteral("translationText"), frame.translationText},
+        {QStringLiteral("lineIndex"), frame.lineIndex},
+        {QStringLiteral("lineProgress"), frame.lineProgress},
+        {QStringLiteral("timingCapability"), timingName(frame.timing)},
+        {QStringLiteral("source"), source},
+        {QStringLiteral("trackKey"), source.isEmpty() ? QString() : makeTrackKey(frame.track)},
+    };
 }
 
 QString stableErrorCode(const QString &errorCode)
@@ -122,8 +140,13 @@ bool LyricsServiceController::setEnabled(bool enabled, QString *)
         return true;
     m_enabled = enabled;
     m_settings.setEnabled(enabled);
-    if (!enabled)
+    if (!enabled) {
         clearFrame();
+    } else if (m_player.selectedPlayerAvailable() && m_trackStable && currentTrackSearchable()) {
+        setStatus(ServiceStatus::LookingUpLyrics);
+        if (m_lyrics)
+            m_lyrics->search(m_snapshot.track);
+    }
     refreshStatus();
     publishState();
     return true;
@@ -143,6 +166,7 @@ bool LyricsServiceController::setPlayer(const QString &busName, QString *errorCo
 
     m_settings.setPlayerBusName(busName);
     m_trackStable = false;
+    clearFrame();
     m_player.setSelectedPlayer(busName);
     m_snapshot = m_player.snapshot();
     refreshStatus();
@@ -161,6 +185,7 @@ bool LyricsServiceController::setOffsetMs(int offsetMs, QString *errorCode)
         return true;
     m_offsetMs = offsetMs;
     m_settings.setOffsetMs(offsetMs);
+    publishFrame();
     publishState();
     return true;
 }
@@ -238,6 +263,8 @@ void LyricsServiceController::onSnapshotChanged(const PlayerSnapshot &snapshot)
         setStatus(ServiceStatus::WaitingForTrack);
         m_trackStable = false;
         clearFrame();
+    } else {
+        publishFrame();
     }
     refreshStatus();
     publishState();
@@ -255,6 +282,7 @@ void LyricsServiceController::onSelectedPlayerAvailableChanged(bool)
 
 void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
 {
+    clearFrame();
     m_snapshot.track = track;
     m_trackStable = true;
     if (m_enabled && m_player.selectedPlayerAvailable() && track.searchable) {
@@ -269,23 +297,22 @@ void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
 
 void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
 {
+    m_parsedLyrics = parseLyrics(payload);
+    m_lyricsSource = payload.providerId;
+    if (m_parsedLyrics.timing == TimingCapability::None) {
+        clearFrame();
+        setStatus(ServiceStatus::NoLyrics);
+        publishState();
+        return;
+    }
     setStatus(ServiceStatus::LyricsReady);
     publishState();
-    QVariantMap frame{
-        {QStringLiteral("currentText"), QString()},
-        {QStringLiteral("secondaryText"), QString()},
-        {QStringLiteral("translationText"), QString()},
-        {QStringLiteral("lineIndex"), -1},
-        {QStringLiteral("lineProgress"), 0.0},
-        {QStringLiteral("timingCapability"), timingName(payload.timing)},
-        {QStringLiteral("source"), QStringLiteral("lrclib")},
-        {QStringLiteral("trackKey"), QString()},
-    };
-    emit frameChanged(frame);
+    publishFrame();
 }
 
 void LyricsServiceController::onNoLyrics()
 {
+    clearFrame();
     setStatus(ServiceStatus::NoLyrics);
     publishState();
 }
@@ -357,9 +384,24 @@ void LyricsServiceController::publishState()
     emit stateChanged(nextState);
 }
 
+void LyricsServiceController::publishFrame()
+{
+    if (m_parsedLyrics.timing == TimingCapability::None)
+        return;
+    const QVariantMap nextFrame = frameMap(
+        frameAt(m_snapshot.track, m_parsedLyrics, m_snapshot.positionMs, m_offsetMs),
+        m_lyricsSource);
+    if (nextFrame == m_lastPublishedFrame)
+        return;
+    m_lastPublishedFrame = nextFrame;
+    emit frameChanged(nextFrame);
+}
+
 void LyricsServiceController::clearFrame()
 {
-    emit frameChanged({
+    m_parsedLyrics = {};
+    m_lyricsSource.clear();
+    const QVariantMap emptyFrame{
         {QStringLiteral("currentText"), QString()},
         {QStringLiteral("secondaryText"), QString()},
         {QStringLiteral("translationText"), QString()},
@@ -368,7 +410,11 @@ void LyricsServiceController::clearFrame()
         {QStringLiteral("timingCapability"), QStringLiteral("none")},
         {QStringLiteral("source"), QString()},
         {QStringLiteral("trackKey"), QString()},
-    });
+    };
+    if (emptyFrame == m_lastPublishedFrame)
+        return;
+    m_lastPublishedFrame = emptyFrame;
+    emit frameChanged(emptyFrame);
 }
 
 bool LyricsServiceController::currentTrackSearchable() const

@@ -1,0 +1,11 @@
+[ti:跨语言测试]
+[ar:Test Artist]
+[offset:+120]
+invalid source line
+[00:05.5][00:01.25]中文歌词
+[00:02.345]English lyric
+[00:03]日本語 한국어
+[00:04.00]old duplicate
+[00:04.00]last duplicate
+[00:06.00]
+[00:07.1234]invalid fraction
