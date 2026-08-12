@@ -153,3 +153,44 @@ target_link_libraries(lrclib-lyrics-adapter-test
 
 add_test(NAME lrclib-lyrics-adapter-test COMMAND lrclib-lyrics-adapter-test)
 set_tests_properties(lrclib-lyrics-adapter-test PROPERTIES TIMEOUT 20)
+
+add_executable(lyrics-dock-viewmodel-test
+    test_lyricsdockviewmodel.cpp
+)
+
+target_link_libraries(lyrics-dock-viewmodel-test
+    PRIVATE
+        Lyrics::DockViewModel
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+)
+
+add_test(
+    NAME lyrics-dock-viewmodel-test
+    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:lyrics-dock-viewmodel-test>
+)
+set_tests_properties(lyrics-dock-viewmodel-test PROPERTIES TIMEOUT 20)
+
+add_executable(lyrics-dock-plugin-test
+    test_lyricsdockplugin.cpp
+)
+
+target_compile_definitions(lyrics-dock-plugin-test PRIVATE
+    LYRICS_DOCK_PLUGIN_PATH="$<TARGET_FILE:ds-lyrics-dock>"
+    LYRICS_DOCK_PACKAGE_PATH="${CMAKE_BINARY_DIR}/packages/org.deepin.ds.lyrics-dock"
+)
+
+target_link_libraries(lyrics-dock-plugin-test
+    PRIVATE
+        Dde::Shell
+        Qt6::Core
+        Qt6::Test
+)
+
+add_dependencies(lyrics-dock-plugin-test
+    ds-lyrics-dock
+    org.deepin.ds.lyrics-dock_package
+)
+
+add_test(NAME lyrics-dock-plugin-test COMMAND lyrics-dock-plugin-test)

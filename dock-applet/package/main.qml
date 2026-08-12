@@ -1,87 +1,95 @@
 import QtQuick
 import QtQuick.Controls
 import org.deepin.ds 1.0
+import org.deepin.ds.dock 1.0
 import org.deepin.lyricsdock 1.0
+import "qml"
 
 AppletItem {
-    // Dock 右侧区域接收 dockOrder 位于 21 到 30 的 Applet。
-    // The right Dock area accepts Applets with a dockOrder between 21 and 30.
+    id: root
+
+    readonly property var viewModel: Applet.viewModel
+    readonly property var panelRoot: Panel.rootObject
+    readonly property int panelPosition: Panel.position === undefined ? Dock.Bottom : Panel.position
+    readonly property int dockSize: panelRoot ? panelRoot.dockSize : LyricsTokens.dockVisualHeight
+    readonly property bool useColumnLayout: panelPosition % 2
+    readonly property int lyricExtent: Math.max(LyricsTokens.dockLyricWidthMin,
+                                                Math.min(LyricsTokens.dockLyricWidthDefault,
+                                                         LyricsTokens.dockLyricWidthMax))
     property int dockOrder: 24
+    property bool shouldVisible: !viewModel.sessionHidden
 
-    implicitWidth: LyricsTokens.dockLyricWidthDefault
-    implicitHeight: Panel.rootObject ? Panel.rootObject.dockSize : 36
+    implicitWidth: useColumnLayout ? dockSize : lyricExtent
+    implicitHeight: useColumnLayout ? lyricExtent : dockSize
+    enabled: shouldVisible
+    visible: shouldVisible
 
-    Rectangle {
-        id: visual
+    function statusText() {
+        if (!viewModel.serviceAvailable)
+            return qsTr("Lyrics service is starting")
+        switch (viewModel.status) {
+        case "Disabled":
+            return qsTr("Dock lyrics are disabled")
+        case "WaitingForPlayer":
+            return qsTr("Waiting for a music player")
+        case "WaitingForTrack":
+            return qsTr("Play a song to show lyrics")
+        case "LookingUpLyrics":
+            return qsTr("Matching lyrics")
+        case "NoLyrics":
+            return qsTr("No lyrics found")
+        case "NeedsCandidateSelection":
+            return qsTr("Select a lyric match in Settings")
+        case "Error":
+            return qsTr("Lyrics are temporarily unavailable")
+        default:
+            return qsTr("Waiting for lyrics")
+        }
+    }
 
-        width: parent.width - LyricsTokens.space2
-        height: Math.min(LyricsTokens.dockVisualHeight, parent.height)
+    function openDetails() {
+        var center = root.mapToItem(null, root.width / 2, root.height / 2)
+        detailsPopup.DockPanelPositioner.bounding = Qt.rect(center.x, center.y,
+                                                            detailsPopup.width,
+                                                            detailsPopup.height)
+        detailsPopup.open()
+    }
+
+    LyricBar {
+        id: lyricBar
+
+        width: root.lyricExtent
+        height: LyricsTokens.dockVisualHeight
         anchors.centerIn: parent
-        color: LyricsTokens.surfaceDock
-        radius: LyricsTokens.dockLyricRadius
-        border.color: LyricsTokens.borderSubtle
-        border.width: 1
+        rotation: root.useColumnLayout ? (root.panelPosition === Dock.Right ? 90 : -90) : 0
+        currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
+        secondaryText: viewModel.status === "LyricsReady" ? viewModel.secondaryText : ""
+        lineProgress: viewModel.status === "LyricsReady" ? viewModel.lineProgress : 0
+        progressVisible: viewModel.status === "LyricsReady"
+                         && viewModel.timingCapability === "line"
 
-        Behavior on color {
-            ColorAnimation {
-                duration: LyricsTokens.motionFast
-            }
-        }
+        onActivated: root.openDetails()
+        onHideRequested: viewModel.setSessionHidden(true)
+    }
 
-        Text {
-            id: tokenTitle
+    LyricsPopup {
+        id: detailsPopup
 
-            anchors.left: parent.left
-            anchors.leftMargin: LyricsTokens.space3
-            anchors.right: closeButton.left
-            anchors.rightMargin: LyricsTokens.space1
-            anchors.verticalCenter: parent.verticalCenter
-            color: LyricsTokens.dockLyricCurrentColor
-            elide: Text.ElideRight
-            font.pixelSize: LyricsTokens.dockCurrentFontSize
-            text: qsTr("Lyrics theme ready")
-            verticalAlignment: Text.AlignVCenter
+        popupX: root.panelRoot && DockPanelPositioner.x !== undefined
+                ? DockPanelPositioner.x : 0
+        popupY: root.panelRoot && DockPanelPositioner.y !== undefined
+                ? DockPanelPositioner.y : 0
+        previousText: viewModel.previousText
+        currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
+        nextText: viewModel.status === "LyricsReady" ? viewModel.secondaryText : ""
+        sourceText: viewModel.source === "lrclib" ? "LRCLIB" : ""
+        timingText: viewModel.timingCapability === "line"
+                    ? qsTr("Line-synchronised lyrics")
+                    : qsTr("Plain lyrics")
 
-            Behavior on color {
-                ColorAnimation {
-                    duration: LyricsTokens.motionFast
-                }
-            }
-        }
-
-        ToolButton {
-            id: closeButton
-
-            anchors.right: parent.right
-            anchors.rightMargin: LyricsTokens.space1
-            anchors.verticalCenter: parent.verticalCenter
-            width: LyricsTokens.dockCloseHitSize
-            height: LyricsTokens.dockCloseHitSize
-            icon.name: "window-close"
-            icon.width: 16
-            icon.height: 16
-            hoverEnabled: true
-            Accessible.name: qsTr("Hide lyric preview")
-
-            background: Rectangle {
-                color: LyricsTokens.surfaceDockHover
-                opacity: closeButton.hovered || closeButton.down ? 1 : 0
-                radius: LyricsTokens.dockLyricRadius
-
-                Behavior on opacity {
-                    NumberAnimation {
-                        duration: LyricsTokens.motionFast
-                    }
-                }
-            }
-
-            ToolTip.visible: closeButton.hovered
-            ToolTip.text: qsTr("Hide preview")
-            ToolTip.delay: 500
-
-            // S01 只隐藏令牌预览；S06 改为调用后台服务保存会话隐藏状态。
-            // S01 only hides this token preview; S06 will call the daemon for session hiding.
-            onClicked: visual.visible = false
+        onOpenSettingsRequested: {
+            viewModel.openSettings()
+            detailsPopup.close()
         }
     }
 }
