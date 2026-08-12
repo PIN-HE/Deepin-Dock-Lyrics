@@ -1,0 +1,28 @@
+# Local tooling and editor metadata
+.agents/
+.codebase-memory/
+.codex/
+.unioncode/
+
+# CMake and Qt build output
+/build/
+/build-*/
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Testing/
+compile_commands.json
+
+# Existing proof-of-concept build output
+/dock-left-demo/build/
+/dock-left-demo/build-*/
+
+# Generated and local runtime data
+*.user
+*.user.*
+*.swp
+*.qm
+*.sqlite
+*.sqlite-*
+*.corrupt

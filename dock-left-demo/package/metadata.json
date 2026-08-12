@@ -1,0 +1,10 @@
+{
+    "Plugin": {
+        "Version": "1.0",
+        "Id": "org.deepin.ds.dock-left-demo",
+        "Name": "Dock Left Demo",
+        "Description": "A small closeable Dock applet demo",
+        "Url": "main.qml",
+        "Parent": "org.deepin.ds.dock"
+    }
+}

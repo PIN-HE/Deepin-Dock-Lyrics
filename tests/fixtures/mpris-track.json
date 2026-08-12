@@ -1,0 +1,10 @@
+{
+    "service": "org.mpris.MediaPlayer2.example",
+    "playbackStatus": "Playing",
+    "metadata": {
+        "xesam:title": "Example Track",
+        "xesam:artist": ["Example Artist"],
+        "xesam:album": "Example Album",
+        "mpris:length": 213000000
+    }
+}

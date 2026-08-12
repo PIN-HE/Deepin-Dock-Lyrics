@@ -1,0 +1,10 @@
+{
+    "Plugin": {
+        "Version": "0.1.0",
+        "Id": "org.deepin.ds.lyrics-dock",
+        "Name": "Deepin Dock Lyrics",
+        "Description": "Displays line-synchronised lyrics in the Dock",
+        "Url": "main.qml",
+        "Parent": "org.deepin.ds.dock"
+    }
+}
