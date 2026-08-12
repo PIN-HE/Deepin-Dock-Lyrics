@@ -67,7 +67,8 @@ AppletItem {
         lineProgress: viewModel.status === "LyricsReady" ? viewModel.lineProgress : 0
         progressVisible: viewModel.status === "LyricsReady"
                          && viewModel.timingCapability === "line"
-        visualizerVisible: (viewModel.status === "LookingUpLyrics" || viewModel.status === "NoLyrics")
+        visualizerVisible: (viewModel.status === "LookingUpLyrics" || viewModel.status === "NoLyrics"
+                            || viewModel.status === "Error")
                            && viewModel.visualizerAvailable
         visualizerLevels: viewModel.visualizerLevels
 

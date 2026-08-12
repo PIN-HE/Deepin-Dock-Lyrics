@@ -514,6 +514,10 @@ void LyricsServiceControllerTest::limitsVisualizerToPlayingNoLyricsState()
     QTRY_VERIFY(visualizer.stopCount > 0);
     QCOMPARE(controller.state().value(QStringLiteral("visualizerAvailable")).toBool(), false);
 
+    emit lyrics.failed(QStringLiteral("provider-failed"));
+    QTRY_VERIFY(visualizer.enabledValue);
+    QCOMPARE(visualizer.lastProcessId, 4321);
+
     QVERIFY(controller.setAudioVisualizerEnabled(false));
     QVERIFY(visualizer.stopCount > 1);
 }

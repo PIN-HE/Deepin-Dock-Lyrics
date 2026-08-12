@@ -575,7 +575,8 @@ bool LyricsServiceController::shouldVisualize() const
 {
     return m_player.selectedPlayerAvailable()
         && m_snapshot.playbackStatus == PlaybackStatus::Playing
-        && (m_status == ServiceStatus::LookingUpLyrics || m_status == ServiceStatus::NoLyrics);
+        && (m_status == ServiceStatus::LookingUpLyrics || m_status == ServiceStatus::NoLyrics
+            || m_status == ServiceStatus::Error);
 }
 
 bool LyricsServiceController::currentTrackSearchable() const
