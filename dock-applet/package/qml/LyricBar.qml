@@ -9,7 +9,10 @@ Rectangle {
     property string secondaryText: ""
     property real lineProgress: 0
     property bool progressVisible: false
-    property bool motionEnabled: !LyricsTokens.reduceMotion
+    // 歌词滚动用于展示被裁切的内容，因此不能被宿主误判的装饰动画偏好关闭。
+    // Lyric scrolling reveals clipped content, so a host's decorative-motion preference must not disable it.
+    property bool motionEnabled: true
+    property bool progressSmoothingEnabled: true
     property int progressAnimationDuration: 220
     property int marqueeStartDelay: 800
     property real animatedProgress: 0
@@ -28,7 +31,9 @@ Rectangle {
         // 仅补间连续播放样本；Seek、换行或回退必须立即复位。
         // Interpolate continuous playback samples only; seeks, line changes, and rewinds reset immediately.
         var advancesNaturally = next >= animatedProgress && next - animatedProgress <= 0.20
-        if (!motionEnabled || !progressVisible || !advancesNaturally) {
+        // 功能性时间进度不跟随“减少动画”；该设置只关闭跑马灯等装饰性运动。
+        // Functional time progress ignores "reduce motion"; it only disables decorative motion such as the marquee.
+        if (!progressSmoothingEnabled || !progressVisible || !advancesNaturally) {
             progressAnimation.stop()
             animatedProgress = next
             return

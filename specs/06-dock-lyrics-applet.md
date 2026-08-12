@@ -70,7 +70,7 @@ dock-applet/
 - `SetSessionHidden` 使用乐观更新保持关闭操作即时响应；异步调用失败时恢复先前状态，服务已更换时不让旧回复覆盖新会话。
 - `LyricsDockApplet` 暴露只读 `viewModel`，保留 `D_APPLET_CLASS` 工厂注册；插件元数据使用 `org.deepin.ds.dock` 父级，包入口位于 `main.qml`。
 - `LyricBar` 在 `dockOrder: 24` 的右侧区域显示当前句、下一句和逐行进度裁切；关闭按钮调用会话隐藏。上下 Dock 使用水平布局，左右 Dock 旋转内部歌词条，固定尺寸不会因文本或状态改变而移动布局。
-- 运行验证后补充平滑渲染：5 Hz D-Bus 逐行进度样本在 QML 中做短时线性补间，Seek、换行和进度回退立即复位；当前句超出可用宽度时停顿后匀速往返滚动，普通文本层与进度裁切层共享同一位移。
+- 运行验证后补充平滑渲染：5 Hz D-Bus 逐行进度样本在 QML 中做短时线性补间，功能性时间进度及用于展示被裁切内容的滚动不受宿主“减少动画”误判影响，Seek、换行和进度回退立即复位；当前句超出可用宽度时停顿后匀速往返滚动，普通文本层与进度裁切层共享同一位移。
 - `LyricsPopup` 显示前一句、当前句、下一句、LRCLIB 来源和时间能力，并提供设置图标、工具提示、无障碍名称及 Esc 关闭。前一句仅在同一曲目行索引自然递增时由 ViewModel 推导。
 - 新增真实临时 session D-Bus 测试，覆盖首次状态、帧更新、服务端收到隐藏调用、服务退出/重启恢复及“先注册服务名、后注册对象”的启动竞态；插件测试覆盖动态工厂实例化、`viewModel` 属性、元数据和 QML 包契约。
 - 验证命令：`cmake -S . -B build-s06-verify -DCMAKE_BUILD_TYPE=Debug`、`cmake --build build-s06-verify -j2`、`ctest --test-dir build-s06-verify --output-on-failure`；13 项测试全部通过。

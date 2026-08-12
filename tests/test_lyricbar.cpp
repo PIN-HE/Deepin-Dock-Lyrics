@@ -44,7 +44,9 @@ void LyricBarTest::smoothsForwardProgressAndResetsBackward()
     QVERIFY(bar);
     bar->setProperty("width", 280);
     bar->setProperty("height", 36);
-    bar->setProperty("motionEnabled", true);
+    // 系统关闭装饰动画时，歌词时间进度仍需连续呈现。
+    // Lyric timing remains continuous when the system disables decorative motion.
+    bar->setProperty("motionEnabled", false);
     bar->setProperty("progressAnimationDuration", 200);
     bar->setProperty("currentText", QStringLiteral("Current lyric"));
     bar->setProperty("progressVisible", true);
@@ -69,7 +71,7 @@ void LyricBarTest::scrollsOnlyOverflowingText()
     QVERIFY(bar);
     bar->setProperty("width", 280);
     bar->setProperty("height", 36);
-    bar->setProperty("motionEnabled", true);
+    QCOMPARE(bar->property("motionEnabled").toBool(), true);
     bar->setProperty("marqueeStartDelay", 0);
 
     auto *line = bar->findChild<QQuickItem *>(QStringLiteral("currentLyricLine"));
