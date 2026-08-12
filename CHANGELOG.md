@@ -4,6 +4,8 @@
 
 - 使用 OpenCC `t2s.json` 在 daemon 解析歌词前将繁体中文转换为简体中文，缓存仍保留来源原文。
 - Convert Traditional Chinese lyrics to Simplified Chinese with OpenCC `t2s.json` before daemon parsing while preserving source text in cache.
+- Dock 状态、工具提示与设置应用根据系统语言自动切换简体中文或英文。
+- Switch Dock status text, tooltips, and the settings application between Simplified Chinese and English according to the system locale.
 
 ## 1.0.0 - 2026-08-13
 

@@ -23,12 +23,11 @@ int main(int argc, char *argv[])
     app.loadTranslator();
 
     QTranslator productTranslator;
-    if (QLocale::system().language() == QLocale::Chinese) {
-        const bool translationLoaded = productTranslator.load(
-            QStringLiteral(":/translations/deepin-lyrics-settings_zh_CN.qm"));
-        if (translationLoaded)
-            app.installTranslator(&productTranslator);
-    }
+    // 使用系统 locale 的完整语言和地区候选，未提供对应翻译时回退英文源码。
+    // Use the system locale's language/territory candidates and fall back to English source text.
+    if (productTranslator.load(QLocale::system(), QStringLiteral("deepin-lyrics-settings"),
+                               QStringLiteral("_"), QStringLiteral(":/translations")))
+        app.installTranslator(&productTranslator);
     app.setProductName(QObject::tr("Dock Lyrics"));
     app.setProductIcon(DIconTheme::findQIcon(QStringLiteral("music")));
     app.setApplicationDescription(QObject::tr("Display synchronized lyrics in the Deepin Dock."));

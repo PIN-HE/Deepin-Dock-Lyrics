@@ -35,3 +35,24 @@ ds_install_package(
     PACKAGE org.deepin.ds.lyrics-dock
     TARGET ds-lyrics-dock
 )
+
+set(DOCK_TRANSLATION_SOURCE
+    ${CMAKE_CURRENT_SOURCE_DIR}/translations/org.deepin.ds.lyrics-dock_zh_CN.ts
+)
+qt_add_translation(DOCK_TRANSLATION_QM ${DOCK_TRANSLATION_SOURCE})
+add_custom_target(org.deepin.ds.lyrics-dock_translation ALL
+    DEPENDS ${DOCK_TRANSLATION_QM}
+)
+add_dependencies(org.deepin.ds.lyrics-dock_package
+    org.deepin.ds.lyrics-dock_translation
+)
+add_custom_command(TARGET org.deepin.ds.lyrics-dock_package POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            ${PROJECT_BINARY_DIR}/packages/org.deepin.ds.lyrics-dock/translations
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${DOCK_TRANSLATION_QM}
+            ${PROJECT_BINARY_DIR}/packages/org.deepin.ds.lyrics-dock/translations/
+)
+install(FILES ${DOCK_TRANSLATION_QM}
+    DESTINATION ${DDE_SHELL_TRANSLATION_INSTALL_DIR}/org.deepin.ds.lyrics-dock/translations
+)

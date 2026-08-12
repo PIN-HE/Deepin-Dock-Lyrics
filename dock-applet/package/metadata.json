@@ -3,7 +3,9 @@
         "Version": "1.0.0",
         "Id": "org.deepin.ds.lyrics-dock",
         "Name": "Deepin Dock Lyrics",
+        "Name[zh_CN]": "Deepin任务栏歌词",
         "Description": "Displays line-synchronised lyrics in the Dock",
+        "Description[zh_CN]": "在Deepin系统任务栏中显示逐行同步歌词",
         "Url": "main.qml",
         "Parent": "org.deepin.ds.dock"
     }
