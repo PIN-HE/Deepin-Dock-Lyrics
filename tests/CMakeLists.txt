@@ -194,3 +194,28 @@ add_dependencies(lyrics-dock-plugin-test
 )
 
 add_test(NAME lyrics-dock-plugin-test COMMAND lyrics-dock-plugin-test)
+
+add_executable(lyric-bar-test
+    test_lyricbar.cpp
+)
+
+target_compile_definitions(lyric-bar-test PRIVATE
+    LYRICS_DOCK_PACKAGE_PATH="${CMAKE_BINARY_DIR}/packages/org.deepin.ds.lyrics-dock"
+)
+
+target_link_libraries(lyric-bar-test
+    PRIVATE
+        Lyrics::Ui
+        Qt6::Core
+        Qt6::Gui
+        Qt6::Qml
+        Qt6::Quick
+        Qt6::Test
+        Dtk6::Gui
+)
+
+add_dependencies(lyric-bar-test org.deepin.ds.lyrics-dock_package)
+add_test(NAME lyric-bar-test COMMAND lyric-bar-test)
+set_tests_properties(lyric-bar-test PROPERTIES
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen"
+)

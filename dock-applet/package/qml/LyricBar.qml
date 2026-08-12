@@ -9,6 +9,10 @@ Rectangle {
     property string secondaryText: ""
     property real lineProgress: 0
     property bool progressVisible: false
+    property bool motionEnabled: !LyricsTokens.reduceMotion
+    property int progressAnimationDuration: 220
+    property int marqueeStartDelay: 800
+    property real animatedProgress: 0
 
     signal activated()
     signal hideRequested()
@@ -18,6 +22,29 @@ Rectangle {
     border.color: LyricsTokens.borderSubtle
     border.width: 1
     clip: true
+
+    function updateProgress() {
+        var next = Math.max(0, Math.min(1, lineProgress))
+        // 仅补间连续播放样本；Seek、换行或回退必须立即复位。
+        // Interpolate continuous playback samples only; seeks, line changes, and rewinds reset immediately.
+        var advancesNaturally = next >= animatedProgress && next - animatedProgress <= 0.20
+        if (!motionEnabled || !progressVisible || !advancesNaturally) {
+            progressAnimation.stop()
+            animatedProgress = next
+            return
+        }
+        progressAnimation.stop()
+        progressAnimation.from = animatedProgress
+        progressAnimation.to = next
+        progressAnimation.start()
+    }
+
+    onLineProgressChanged: updateProgress()
+    onCurrentTextChanged: {
+        progressAnimation.stop()
+        animatedProgress = Math.max(0, Math.min(1, lineProgress))
+    }
+    onProgressVisibleChanged: updateProgress()
 
     Behavior on color {
         ColorAnimation { duration: LyricsTokens.motionFast }
@@ -33,8 +60,10 @@ Rectangle {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
 
-        Text {
+        MarqueeText {
             id: currentLine
+
+            objectName: "currentLyricLine"
 
             anchors.left: parent.left
             anchors.right: parent.right
@@ -42,32 +71,15 @@ Rectangle {
             anchors.topMargin: 2
             height: LyricsTokens.dockLineHeight
             color: LyricsTokens.dockLyricCurrentColor
-            elide: Text.ElideRight
-            font.pixelSize: LyricsTokens.dockCurrentFontSize
-            font.weight: Font.Medium
-            horizontalAlignment: Text.AlignLeft
+            progressColor: LyricsTokens.dockLyricProgressColor
+            progress: root.animatedProgress
+            progressVisible: root.progressVisible
+            pixelSize: LyricsTokens.dockCurrentFontSize
+            weight: Font.Medium
+            marqueeEnabled: true
+            motionEnabled: root.motionEnabled
+            startDelay: root.marqueeStartDelay
             text: root.currentText
-            verticalAlignment: Text.AlignVCenter
-        }
-
-        Item {
-            anchors.left: currentLine.left
-            anchors.top: currentLine.top
-            width: Math.max(0, Math.min(1, root.lineProgress)) * currentLine.width
-            height: currentLine.height
-            clip: true
-            visible: root.progressVisible && root.currentText.length > 0
-
-            Text {
-                width: currentLine.width
-                height: currentLine.height
-                color: LyricsTokens.dockLyricProgressColor
-                elide: Text.ElideRight
-                font: currentLine.font
-                horizontalAlignment: Text.AlignLeft
-                text: root.currentText
-                verticalAlignment: Text.AlignVCenter
-            }
         }
 
         Text {
@@ -125,5 +137,14 @@ Rectangle {
         ToolTip.text: qsTr("Hide Dock lyrics")
         ToolTip.delay: 500
         onClicked: root.hideRequested()
+    }
+
+    NumberAnimation {
+        id: progressAnimation
+
+        target: root
+        property: "animatedProgress"
+        duration: root.progressAnimationDuration
+        easing.type: Easing.Linear
     }
 }

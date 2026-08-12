@@ -55,6 +55,7 @@ void LyricsDockPluginTest::packageMatchesDockContract()
     QVERIFY(!source.contains("QDBusInterface"));
 
     QVERIFY(QFile::exists(QStringLiteral(LYRICS_DOCK_PACKAGE_PATH "/qml/LyricBar.qml")));
+    QVERIFY(QFile::exists(QStringLiteral(LYRICS_DOCK_PACKAGE_PATH "/qml/MarqueeText.qml")));
     QVERIFY(QFile::exists(QStringLiteral(LYRICS_DOCK_PACKAGE_PATH "/qml/LyricsPopup.qml")));
 }
 
