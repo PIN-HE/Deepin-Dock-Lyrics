@@ -49,3 +49,47 @@ add_test(
     COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:mpris-player-discovery-test>
 )
 set_tests_properties(mpris-player-discovery-test PROPERTIES TIMEOUT 20)
+
+add_executable(log-engine-test
+    test_logengine.cpp
+)
+
+target_link_libraries(log-engine-test
+    PRIVATE
+        Lyrics::Logging
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME log-engine-test COMMAND log-engine-test)
+
+add_executable(lyrics-service-controller-test
+    test_lyricsservicecontroller.cpp
+)
+
+target_link_libraries(lyrics-service-controller-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME lyrics-service-controller-test COMMAND lyrics-service-controller-test)
+
+add_executable(lyrics-dbus-adapter-test
+    test_lyricsdbusadapter.cpp
+)
+
+target_link_libraries(lyrics-dbus-adapter-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+)
+
+add_test(
+    NAME lyrics-dbus-adapter-test
+    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:lyrics-dbus-adapter-test>
+)
+set_tests_properties(lyrics-dbus-adapter-test PROPERTIES TIMEOUT 20)

@@ -41,6 +41,7 @@ ctest --test-dir build --output-on-failure
 
 ```text
 common/lyrics-core/      Public data types and pure utility code
+common/lyrics-logging/   Privacy-filtered local event logging
 common/lyrics-ui/        Theme-aware DTK6/QML design tokens
 daemon/lyrics-dockd/     User-session background daemon
 apps/lyrics-settings/    DTK6 settings application
@@ -52,6 +53,14 @@ specs/                   Implementation specifications
 ```
 
 The implementation order and acceptance criteria are in [specs/README.md](specs/README.md).
+
+## Local logs and privacy
+
+`lyrics-dockd` uses the DTK file and console appenders for local diagnostics. Logs contain only
+component events, state transitions, stable error codes, player counts, and bounded numeric or
+boolean settings. Track titles, artists, albums, lyrics, LRCLIB queries, raw D-Bus payloads, and
+user paths are rejected by an allowlist before a log sink receives them. The project has no
+telemetry uploader and does not transmit these local logs.
 
 ## Code comments
 

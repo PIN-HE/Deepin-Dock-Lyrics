@@ -16,9 +16,11 @@ option(DEEPIN_DOCK_LYRICS_BUILD_TESTS "Build Deepin Dock Lyrics tests" ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus Network Sql Widgets Qml Quick Test)
 find_package(Dtk6 REQUIRED COMPONENTS Core Gui Widget)
+find_package(Dtk6DConfig REQUIRED)
 find_package(DDEShell REQUIRED)
 
 add_subdirectory(common/lyrics-core)
+add_subdirectory(common/lyrics-logging)
 add_subdirectory(common/lyrics-ui)
 add_subdirectory(daemon/lyrics-dockd)
 add_subdirectory(apps/lyrics-settings)

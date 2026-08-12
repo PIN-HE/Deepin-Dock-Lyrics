@@ -1,6 +1,6 @@
 # S03 歌词后台服务与 D-Bus 状态契约
 
-**状态：** 待实施
+**状态：** 已完成（2026-08-12）
 
 **前置：** S00、S02
 **后续：** S04-S08
@@ -70,9 +70,40 @@ stateDiagram-v2
 - 在 `sessionHidden=true` 时仍可更新缓存和状态，但 Applet 不占用可见宽度；daemon 重启时该值恢复为 `false`。
 - D-Bus 调用必须校验参数、异步执行耗时操作，并在完成后用信号更新，不能阻塞 session bus 主线程。
 
+## 分层与隐私日志
+
+```mermaid
+flowchart LR
+    MPRIS["MPRIS / session D-Bus"] --> MPA["MprisPlayerAdapter"]
+    MPA --> PP["PlayerPort"]
+    DCONFIG["DConfig"] --> SPA["DConfigSettingsAdapter"]
+    SPA --> SP["SettingsPort"]
+    LRCLIB["S04 LRCLIB + cache"] --> LP["LyricsPort"]
+    PP --> CTRL["LyricsServiceController"]
+    SP --> CTRL
+    LP --> CTRL
+    CTRL --> DBA["LyricsDbusAdapter"]
+    DBA --> CLIENTS["Dock Applet / Settings"]
+    CTRL --> LOG["LogEngine allowlist"]
+    LOG --> DTK["DTK local appenders"]
+```
+
+- 应用状态机只依赖 `PlayerPort`、`SettingsPort`、`LyricsPort` 与 `LogSink` 抽象；MPRIS、DConfig、D-Bus 和后续 LRCLIB/SQLite 均位于适配器层。
+- 本地日志只允许组件、事件码、状态转换、稳定错误码、播放器数量及有边界的布尔/数值字段。
+- 歌曲名、歌手、专辑、歌词、LRCLIB 查询、原始元数据、完整 D-Bus 载荷和用户路径在日志入口通过字段与值白名单拒绝；项目不包含日志上传器。
+
 ## 验收标准
 
 1. `qdbus` 或测试客户端能调用所有方法，并得到与签名一致的返回类型。
 2. Dock 与设置应用可在不同启动顺序下连接；服务未启动时 UI 显示可恢复的“等待服务”状态而非崩溃。
 3. 暂停期间 10 秒内不超过一次无必要 `FrameChanged`；播放时帧频不高于 5 Hz。
 4. 停止、退出和重复启动服务后，旧曲目和旧歌词帧不会残留给新客户端。
+
+## 实现记录
+
+- 新增 `Lyrics::Service`，以端口/适配器结构包装 S02 的 MPRIS 发现器，并集中管理八种服务状态、公开参数校验和去重后的状态发布。
+- 导出 `org.deepin.LyricsDock1` session D-Bus 服务；帧信号按 200ms 合并且仅在内容变化时发出，重复实例无法取得服务名并退出。
+- 新增 DConfig 设置适配器与配置元数据，持久化 `enabled`、`playerBusName` 和 `offsetMs`；`sessionHidden` 只保存在当前进程。
+- 新增 `Lyrics::Logging` 与 DTK 本地日志初始化。日志字段和值均经白名单过滤，不记录曲目、歌词、在线查询、原始载荷或用户路径，也不上传日志。
+- 测试覆盖状态转换、位置采样导致的重复状态抑制、输入范围、会话隐藏重启、隐私字段拒绝、D-Bus introspection/调用错误及重复服务名冲突。
+- 验证命令：`cmake -S . -B build-s03-verify -DCMAKE_BUILD_TYPE=Debug`、`cmake --build build-s03-verify -j2`、`ctest --test-dir build-s03-verify --output-on-failure`；6 项测试全部通过。

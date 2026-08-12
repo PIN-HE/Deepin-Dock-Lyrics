@@ -1,17 +1,27 @@
-#include "mprisplayerdiscovery.h"
+#include "application/lyricsservicecontroller.h"
+#include "infrastructure/dconfigsettingsadapter.h"
+#include "infrastructure/lyricsdbusadapter.h"
+#include "infrastructure/mprisplayeradapter.h"
+
+#include <lyricslogging/logengine.h>
+
+#include <DLog>
 
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QTextStream>
 
-using deepin::lyrics::MprisPlayerDiscovery;
+using namespace deepin::lyrics;
 
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("lyrics-dockd"));
     app.setApplicationVersion(QStringLiteral("0.1.0"));
+
+    Dtk::Core::DLogManager::registerConsoleAppender();
+    Dtk::Core::DLogManager::registerFileAppender();
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Deepin Dock Lyrics background service"));
@@ -28,11 +38,26 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    MprisPlayerDiscovery discovery(QDBusConnection::sessionBus());
-    discovery.setSelectedPlayer(parser.value(QStringLiteral("player")));
-    discovery.start();
+    QtLogSink logSink;
+    LogEngine logger(logSink);
+    DConfigSettingsAdapter settings;
+    MprisPlayerAdapter player(QDBusConnection::sessionBus());
+    if (parser.isSet(QStringLiteral("player")))
+        settings.setPlayerBusName(parser.value(QStringLiteral("player")));
 
-    // S02 仅保持 MPRIS 发现循环；S03 将在同一进程中注册产品 D-Bus 服务。
-    // S02 only keeps MPRIS discovery alive; S03 will export the product D-Bus service here.
+    LyricsServiceController controller(player, settings, logger);
+    LyricsDbusAdapter dbus(controller, QDBusConnection::sessionBus());
+    QString errorCode;
+    if (!dbus.registerService(&errorCode)) {
+        logger.write(LogLevel::Critical, QStringLiteral("dbus"),
+                     QStringLiteral("service_registration_failed"),
+                     {{QStringLiteral("error_code"), errorCode}});
+        return 2;
+    }
+
+    QObject::connect(&dbus, &LyricsDbusAdapter::serviceOwnershipLost,
+                     &app, &QCoreApplication::quit);
+    logger.write(LogLevel::Info, QStringLiteral("daemon"), QStringLiteral("service_started"));
+    controller.start();
     return app.exec();
 }
