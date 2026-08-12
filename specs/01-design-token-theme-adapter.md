@@ -1,6 +1,6 @@
 # S01 Design Token 与主题适配
 
-**状态：** 待实施
+**状态：** 已完成（2026-08-12）
 
 **前置：** S00
 **后续：** S06、S07
@@ -60,3 +60,9 @@ Rectangle {
 2. 在当前系统亮、暗主题下，文本、边框、表面和进度色均来自 DTK 主题，且应用无需重启即可更新。
 3. `reduceMotion` 为真时，歌词切换和按钮悬停动画时长为 `0`。
 4. Dock 关闭按钮的鼠标/触摸命中区域固定为 28 px，图标本身可为 16 px。
+
+## 实现记录
+
+- 新增 `Lyrics::Ui` 静态库和 `LyricsTokens` QML 单例；令牌从 `DGuiApplicationHelper` / `DPalette` 读取语义色，并订阅主题与调色板变化。
+- Applet 在创建 QML 根对象前注册 `org.deepin.lyricsdock 1.0`，其 S01 预览 UI 仅使用 `LyricsTokens`，不含硬编码 HEX 颜色。
+- `lyrics-ui-test` 覆盖固定规格、DTK 调色板映射、真实调色板变更通知与 QML 单例导入。验证命令：`cmake --build build-s01-verify -j2` 与 `ctest --test-dir build-s01-verify --output-on-failure`。

@@ -19,6 +19,7 @@ find_package(Dtk6 REQUIRED COMPONENTS Core Gui Widget)
 find_package(DDEShell REQUIRED)
 
 add_subdirectory(common/lyrics-core)
+add_subdirectory(common/lyrics-ui)
 add_subdirectory(daemon/lyrics-dockd)
 add_subdirectory(apps/lyrics-settings)
 add_subdirectory(dock-applet)

@@ -51,3 +51,7 @@ specs/                   Implementation specifications
 ```
 
 The implementation order and acceptance criteria are in [specs/README.md](specs/README.md).
+
+## Code comments
+
+New non-obvious code comments use concise Chinese and English pairs. Comments explain constraints or decisions that code cannot express directly; UI strings continue to use Qt translation APIs.

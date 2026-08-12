@@ -5,6 +5,7 @@ add_library(ds-lyrics-dock SHARED
 
 target_link_libraries(ds-lyrics-dock
     PRIVATE
+        Lyrics::Ui
         Dde::Shell
         Qt6::Core
         Qt6::Qml
