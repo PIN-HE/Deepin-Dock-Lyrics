@@ -12,6 +12,8 @@ MprisPlayerAdapter::MprisPlayerAdapter(const QDBusConnection &connection, QObjec
             this, &PlayerPort::snapshotChanged);
     connect(&m_discovery, &MprisPlayerDiscovery::selectedPlayerAvailableChanged,
             this, &PlayerPort::selectedPlayerAvailableChanged);
+    connect(&m_discovery, &MprisPlayerDiscovery::selectedPlayerProcessIdChanged,
+            this, &PlayerPort::selectedPlayerProcessIdChanged);
     connect(&m_discovery, &MprisPlayerDiscovery::trackChanged,
             this, &PlayerPort::trackChanged);
 }
@@ -39,6 +41,11 @@ PlayerSnapshot MprisPlayerAdapter::snapshot() const
 bool MprisPlayerAdapter::selectedPlayerAvailable() const
 {
     return m_discovery.selectedPlayerAvailable();
+}
+
+qint64 MprisPlayerAdapter::selectedPlayerProcessId() const
+{
+    return m_discovery.selectedPlayerProcessId();
 }
 
 void MprisPlayerAdapter::setSelectedPlayer(const QString &busName)

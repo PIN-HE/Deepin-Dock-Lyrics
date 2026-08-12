@@ -13,6 +13,8 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(DEEPIN_DOCK_LYRICS_BUILD_TESTS "Build Deepin Dock Lyrics tests" ON)
+option(DEEPIN_DOCK_LYRICS_ENABLE_PIPEWIRE
+       "Enable the optional PipeWire audio visualizer backend when available" ON)
 
 configure_file(
     cmake/version.h.in
@@ -33,6 +35,15 @@ find_package(Dtk6DConfig REQUIRED)
 find_package(DDEShell REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(OpenCC REQUIRED IMPORTED_TARGET opencc)
+if(DEEPIN_DOCK_LYRICS_ENABLE_PIPEWIRE)
+    pkg_check_modules(PipeWire QUIET IMPORTED_TARGET libpipewire-0.3)
+endif()
+
+if(PipeWire_FOUND)
+    message(STATUS "PipeWire audio visualizer backend is enabled")
+else()
+    message(STATUS "PipeWire audio visualizer backend is unavailable; lyrics remain fully functional")
+endif()
 
 add_subdirectory(common/lyrics-core)
 add_subdirectory(common/lyrics-logging)

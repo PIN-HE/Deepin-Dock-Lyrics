@@ -186,6 +186,7 @@ private slots:
     void pollsOnlyWhilePlaying();
     void debouncesTrackChanges();
     void handlesIncompleteMetadataAndExit();
+    void resolvesAndClearsSelectedPlayerProcessId();
 };
 
 void MprisPlayerDiscoveryTest::discoversAndSwitchesPlayers()
@@ -324,6 +325,33 @@ void MprisPlayerDiscoveryTest::handlesIncompleteMetadataAndExit()
     QTRY_VERIFY(!discovery.selectedPlayerAvailable());
     QTRY_VERIFY(discovery.snapshot().busName.isEmpty());
     QVERIFY(availabilitySpy.count() >= 2);
+}
+
+void MprisPlayerDiscoveryTest::resolvesAndClearsSelectedPlayerProcessId()
+{
+    FakeMprisService first(QStringLiteral("org.mpris.MediaPlayer2.pid-one"),
+                           QStringLiteral("PID One"));
+    FakeMprisService second(QStringLiteral("org.mpris.MediaPlayer2.pid-two"),
+                            QStringLiteral("PID Two"));
+    QVERIFY(first.start());
+    QVERIFY(second.start());
+
+    MprisPlayerDiscovery discovery(QDBusConnection::sessionBus());
+    QSignalSpy processIdSpy(&discovery, &MprisPlayerDiscovery::selectedPlayerProcessIdChanged);
+    discovery.start();
+    QTRY_COMPARE(discovery.availablePlayers().size(), 2);
+
+    discovery.setSelectedPlayer(QStringLiteral("org.mpris.MediaPlayer2.pid-one"));
+    QTRY_VERIFY(discovery.selectedPlayerProcessId() > 0);
+    QCOMPARE(discovery.selectedPlayerProcessId(), qint64(QCoreApplication::applicationPid()));
+
+    discovery.setSelectedPlayer(QStringLiteral("org.mpris.MediaPlayer2.pid-two"));
+    QTRY_VERIFY(discovery.selectedPlayerProcessId() > 0);
+    QCOMPARE(discovery.selectedPlayerProcessId(), qint64(QCoreApplication::applicationPid()));
+
+    second.stop();
+    QTRY_COMPARE(discovery.selectedPlayerProcessId(), 0);
+    QVERIFY(processIdSpy.count() >= 3);
 }
 
 QTEST_GUILESS_MAIN(MprisPlayerDiscoveryTest)

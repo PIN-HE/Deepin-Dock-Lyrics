@@ -17,6 +17,7 @@ public:
     QString selectedPlayer() const override { return selected; }
     PlayerSnapshot snapshot() const override { return currentSnapshot; }
     bool selectedPlayerAvailable() const override { return selectedAvailable; }
+    qint64 selectedPlayerProcessId() const override { return selectedProcessId; }
     void setSelectedPlayer(const QString &busName) override { selected = busName; }
 
     void publishPlayers(const QList<PlayerDescriptor> &value)
@@ -48,6 +49,7 @@ public:
     QString selected;
     PlayerSnapshot currentSnapshot;
     bool selectedAvailable = false;
+    qint64 selectedProcessId = 0;
     bool started = false;
 };
 

@@ -22,6 +22,7 @@ public:
     QString selectedPlayer() const override { return selected; }
     PlayerSnapshot snapshot() const override { return {}; }
     bool selectedPlayerAvailable() const override { return false; }
+    qint64 selectedPlayerProcessId() const override { return 0; }
     void setSelectedPlayer(const QString &value) override { selected = value; }
 
     QString selected;

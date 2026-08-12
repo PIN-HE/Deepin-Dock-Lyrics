@@ -161,6 +161,11 @@ bool MprisPlayerDiscovery::selectedPlayerAvailable() const
     return m_selectedPlayerAvailable;
 }
 
+qint64 MprisPlayerDiscovery::selectedPlayerProcessId() const
+{
+    return m_selectedPlayerProcessId;
+}
+
 void MprisPlayerDiscovery::setSelectedPlayer(const QString &busName)
 {
     if (m_selectedPlayer == busName)
@@ -187,6 +192,7 @@ void MprisPlayerDiscovery::setSelectedPlayer(const QString &busName)
     m_positionTimer.stop();
     m_positionRequestPending = false;
     clearSnapshot();
+    clearSelectedPlayerProcessId();
 
     if (!m_selectedPlayer.isEmpty()) {
         m_connection.connect(m_selectedPlayer,
@@ -204,8 +210,10 @@ void MprisPlayerDiscovery::setSelectedPlayer(const QString &busName)
     }
 
     updateSelectedAvailability();
-    if (m_selectedPlayerAvailable)
+    if (m_selectedPlayerAvailable) {
         requestSelectedProperties();
+        requestSelectedPlayerProcessId();
+    }
 }
 
 void MprisPlayerDiscovery::onNameOwnerChanged(const QString &name,
@@ -327,8 +335,10 @@ void MprisPlayerDiscovery::addPlayer(const QString &busName)
 
     requestRootProperties(busName);
     updateSelectedAvailability();
-    if (busName == m_selectedPlayer)
+    if (busName == m_selectedPlayer) {
         requestSelectedProperties();
+        requestSelectedPlayerProcessId();
+    }
 }
 
 void MprisPlayerDiscovery::removePlayer(const QString &busName)
@@ -343,6 +353,7 @@ void MprisPlayerDiscovery::removePlayer(const QString &busName)
         m_positionTimer.stop();
         m_positionRequestPending = false;
         clearSnapshot();
+        clearSelectedPlayerProcessId();
     }
     updateSelectedAvailability();
 }
@@ -395,6 +406,46 @@ void MprisPlayerDiscovery::requestSelectedProperties()
             });
 }
 
+void MprisPlayerDiscovery::requestSelectedPlayerProcessId()
+{
+    if (!m_selectedPlayerAvailable)
+        return;
+
+    const int generation = m_selectionGeneration;
+    const QString service = m_selectedPlayer;
+    QDBusMessage message = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.DBus"), QStringLiteral("/org/freedesktop/DBus"),
+        QStringLiteral("org.freedesktop.DBus"), QStringLiteral("GetConnectionUnixProcessID"));
+    message << service;
+
+    auto *watcher = new QDBusPendingCallWatcher(m_connection.asyncCall(message), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this,
+            [this, watcher, generation, service] {
+                QDBusPendingReply<uint> reply = *watcher;
+                watcher->deleteLater();
+                if (reply.isError()) {
+                    qCWarning(mprisLog) << "Failed to resolve selected MPRIS process ID:"
+                                        << reply.error().name();
+                    return;
+                }
+                if (generation != m_selectionGeneration || service != m_selectedPlayer
+                    || !m_selectedPlayerAvailable) {
+                    return;
+                }
+
+                const qint64 processId = reply.value();
+                if (processId <= 0)
+                    return;
+
+                // 只接受 D-Bus 返回的精确 PID，后续绝不按应用名或标题猜测音频流。
+                // Accept only the exact D-Bus PID; later audio matching must never guess by app name or title.
+                if (m_selectedPlayerProcessId == processId)
+                    return;
+                m_selectedPlayerProcessId = processId;
+                emit selectedPlayerProcessIdChanged(processId);
+            });
+}
+
 void MprisPlayerDiscovery::applyPlayerProperties(const QVariantMap &properties)
 {
     bool metadataChanged = false;
@@ -440,6 +491,8 @@ void MprisPlayerDiscovery::updateSelectedAvailability()
         return;
     m_selectedPlayerAvailable = available;
     emit selectedPlayerAvailableChanged(available);
+    if (!available)
+        clearSelectedPlayerProcessId();
 }
 
 void MprisPlayerDiscovery::updatePositionPolling()
@@ -464,6 +517,14 @@ void MprisPlayerDiscovery::clearSnapshot()
     m_snapshot = {};
     m_pendingTrack = {};
     emit snapshotChanged(m_snapshot);
+}
+
+void MprisPlayerDiscovery::clearSelectedPlayerProcessId()
+{
+    if (m_selectedPlayerProcessId == 0)
+        return;
+    m_selectedPlayerProcessId = 0;
+    emit selectedPlayerProcessIdChanged(0);
 }
 
 } // namespace deepin::lyrics

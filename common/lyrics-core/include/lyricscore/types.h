@@ -5,6 +5,8 @@
 #include <QStringList>
 #include <QVector>
 
+#include <array>
+
 namespace deepin::lyrics {
 
 enum class PlaybackStatus {
@@ -17,6 +19,25 @@ enum class TimingCapability {
     None,
     Plain,
     Line,
+};
+
+enum class VisualizerState {
+    Disabled,
+    WaitingForPlayer,
+    ResolvingAudioStream,
+    Active,
+    Unavailable,
+};
+
+enum class StreamMatchConfidence {
+    None,
+    ExactPid,
+};
+
+constexpr int visualizerBandCount = 16;
+
+struct VisualizerFrame {
+    std::array<float, visualizerBandCount> levels {};
 };
 
 struct TrackIdentity {
@@ -83,5 +104,8 @@ Q_DECLARE_METATYPE(deepin::lyrics::TrackIdentity)
 Q_DECLARE_METATYPE(deepin::lyrics::PlayerDescriptor)
 Q_DECLARE_METATYPE(QList<deepin::lyrics::PlayerDescriptor>)
 Q_DECLARE_METATYPE(deepin::lyrics::PlayerSnapshot)
+Q_DECLARE_METATYPE(deepin::lyrics::VisualizerState)
+Q_DECLARE_METATYPE(deepin::lyrics::StreamMatchConfidence)
+Q_DECLARE_METATYPE(deepin::lyrics::VisualizerFrame)
 Q_DECLARE_METATYPE(deepin::lyrics::LyricCandidate)
 Q_DECLARE_METATYPE(QList<deepin::lyrics::LyricCandidate>)

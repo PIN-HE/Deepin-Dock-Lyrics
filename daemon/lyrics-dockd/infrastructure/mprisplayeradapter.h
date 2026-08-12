@@ -18,6 +18,7 @@ public:
     QString selectedPlayer() const override;
     PlayerSnapshot snapshot() const override;
     bool selectedPlayerAvailable() const override;
+    qint64 selectedPlayerProcessId() const override;
 
 public slots:
     void setSelectedPlayer(const QString &busName) override;

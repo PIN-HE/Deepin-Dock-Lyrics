@@ -22,6 +22,8 @@ add_library(lyrics-service STATIC
     application/lyricsservicecontroller.h
     infrastructure/dconfigsettingsadapter.cpp
     infrastructure/dconfigsettingsadapter.h
+    infrastructure/audiospectrumanalyzer.cpp
+    infrastructure/audiospectrumanalyzer.h
     infrastructure/lyricsdbusadapter.cpp
     infrastructure/lyricsdbusadapter.h
     infrastructure/lrcliblyricsadapter.cpp
@@ -37,12 +39,18 @@ add_library(lyrics-service STATIC
     infrastructure/sqlitelyricscache.cpp
     infrastructure/sqlitelyricscache.h
     ports/httptransport.h
+    ports/audiovisualizerport.h
     ports/chinesescriptconverter.h
     ports/lyricscache.h
     ports/lyricsport.h
     ports/playerport.h
     ports/settingsport.h
 )
+
+if(PipeWire_FOUND)
+    target_compile_definitions(lyrics-service PUBLIC DEEPIN_DOCK_LYRICS_HAS_PIPEWIRE=1)
+    target_link_libraries(lyrics-service PUBLIC PkgConfig::PipeWire)
+endif()
 
 add_library(Lyrics::Service ALIAS lyrics-service)
 

@@ -11,6 +11,19 @@ target_link_libraries(lyrics-core-test
 
 add_test(NAME lyrics-core-test COMMAND lyrics-core-test)
 
+add_executable(audio-spectrum-analyzer-test
+    test_audiospectrumanalyzer.cpp
+)
+
+target_link_libraries(audio-spectrum-analyzer-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME audio-spectrum-analyzer-test COMMAND audio-spectrum-analyzer-test)
+
 add_executable(lrc-parser-test
     test_lrcparser.cpp
 )

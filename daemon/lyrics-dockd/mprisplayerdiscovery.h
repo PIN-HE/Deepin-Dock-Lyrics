@@ -21,6 +21,7 @@ public:
     QString selectedPlayer() const;
     PlayerSnapshot snapshot() const;
     bool selectedPlayerAvailable() const;
+    qint64 selectedPlayerProcessId() const;
 
 public slots:
     void setSelectedPlayer(const QString &busName);
@@ -29,6 +30,7 @@ signals:
     void availablePlayersChanged(const QList<PlayerDescriptor> &players);
     void snapshotChanged(const PlayerSnapshot &snapshot);
     void selectedPlayerAvailableChanged(bool available);
+    void selectedPlayerProcessIdChanged(qint64 processId);
     void trackChanged(const TrackIdentity &track);
 
 private slots:
@@ -46,11 +48,13 @@ private:
     void removePlayer(const QString &busName);
     void requestRootProperties(const QString &busName);
     void requestSelectedProperties();
+    void requestSelectedPlayerProcessId();
     void applyPlayerProperties(const QVariantMap &properties);
     void updateSelectedAvailability();
     void updatePositionPolling();
     void publishSnapshot();
     void clearSnapshot();
+    void clearSelectedPlayerProcessId();
 
     QDBusConnection m_connection;
     QHash<QString, PlayerDescriptor> m_players;
@@ -62,6 +66,7 @@ private:
     int m_selectionGeneration = 0;
     bool m_started = false;
     bool m_selectedPlayerAvailable = false;
+    qint64 m_selectedPlayerProcessId = 0;
     bool m_positionRequestPending = false;
 };
 
