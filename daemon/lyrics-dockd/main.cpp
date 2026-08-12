@@ -8,6 +8,7 @@
 #include "infrastructure/sqlitelyricscache.h"
 
 #include <lyricslogging/logengine.h>
+#include <deepinlyrics/version.h>
 
 #include <DLog>
 
@@ -24,7 +25,7 @@ int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("lyrics-dockd"));
-    app.setApplicationVersion(QStringLiteral("0.1.0"));
+    app.setApplicationVersion(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Deepin Dock Lyrics background service"));

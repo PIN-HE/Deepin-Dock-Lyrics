@@ -2,6 +2,7 @@
 
 #include "ports/httptransport.h"
 
+#include <deepinlyrics/version.h>
 #include <lyricscore/lyricprovider.h>
 
 #include <QElapsedTimer>
@@ -44,7 +45,8 @@ private:
     HttpTransport &m_transport;
     QUrl m_baseUrl = QUrl(QStringLiteral("https://lrclib.net"));
     QByteArray m_userAgent = QByteArrayLiteral(
-        "DeepinDockLyrics/0.1.0 (https://github.com/ojijibo/deepin-dock-lyrics)");
+        "DeepinDockLyrics/" DEEPIN_DOCK_LYRICS_VERSION
+        " (https://github.com/ojijibo/deepin-dock-lyrics)");
     QQueue<PendingRequest> m_queue;
     QElapsedTimer m_lastDispatch;
     QTimer m_queueTimer;

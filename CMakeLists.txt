@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(deepin_dock_lyrics VERSION 0.1.0 LANGUAGES CXX)
+project(deepin_dock_lyrics VERSION 1.0.0 LANGUAGES CXX)
 
 include(CTest)
 include(GNUInstallDirs)
@@ -13,6 +13,19 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(DEEPIN_DOCK_LYRICS_BUILD_TESTS "Build Deepin Dock Lyrics tests" ON)
+
+configure_file(
+    cmake/version.h.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/deepinlyrics/version.h
+    @ONLY
+)
+
+add_library(lyrics-version INTERFACE)
+add_library(Lyrics::Version ALIAS lyrics-version)
+target_include_directories(lyrics-version
+    INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated>
+)
 
 find_package(Qt6 REQUIRED COMPONENTS Core DBus LinguistTools Network Sql Widgets Qml Quick Test)
 find_package(Dtk6 REQUIRED COMPONENTS Core Gui Widget)

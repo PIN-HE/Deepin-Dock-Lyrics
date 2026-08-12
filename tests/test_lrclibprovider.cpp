@@ -1,5 +1,7 @@
 #include "infrastructure/lrclibprovider.h"
 
+#include <deepinlyrics/version.h>
+
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QSignalSpy>
@@ -88,8 +90,10 @@ void LRCLIBProviderTest::buildsExactRequestAndParsesRecord()
     QCOMPARE(query.queryItemValue(QStringLiteral("track_name")), QStringLiteral("Example Track"));
     QCOMPARE(query.queryItemValue(QStringLiteral("artist_name")), QStringLiteral("Example Artist"));
     QCOMPARE(query.queryItemValue(QStringLiteral("duration")), QStringLiteral("213"));
-    QVERIFY(request.headers.value(QByteArrayLiteral("User-Agent")).contains("DeepinDockLyrics"));
-    QVERIFY(request.headers.value(QByteArrayLiteral("User-Agent")).contains("https://"));
+    const QByteArray userAgent = request.headers.value(QByteArrayLiteral("User-Agent"));
+    QVERIFY(userAgent.contains("DeepinDockLyrics"));
+    QVERIFY(userAgent.contains(QByteArrayLiteral("/" DEEPIN_DOCK_LYRICS_VERSION)));
+    QVERIFY(userAgent.contains("https://"));
 
     transport.respond({200, recordJson(), {}, {}});
     QVERIFY(completed);

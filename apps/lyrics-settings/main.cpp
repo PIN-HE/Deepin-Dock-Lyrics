@@ -1,6 +1,8 @@
 #include "settingsviewmodel.h"
 #include "settingswindow.h"
 
+#include <deepinlyrics/version.h>
+
 #include <DApplication>
 #include <DIconTheme>
 #include <DLog>
@@ -16,7 +18,7 @@ int main(int argc, char *argv[])
 {
     DApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("deepin-lyrics-settings"));
-    app.setApplicationVersion(QStringLiteral("0.1.0"));
+    app.setApplicationVersion(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION));
     app.setOrganizationName(QStringLiteral("deepin"));
     app.loadTranslator();
 

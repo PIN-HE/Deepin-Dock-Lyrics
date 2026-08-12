@@ -61,6 +61,7 @@ target_link_libraries(deepin-lyrics-settings
         Lyrics::SettingsViewModel
         Lyrics::SettingsWindow
         Lyrics::Ui
+        Lyrics::Version
         Qt6::Core
         Qt6::DBus
         Qt6::Widgets

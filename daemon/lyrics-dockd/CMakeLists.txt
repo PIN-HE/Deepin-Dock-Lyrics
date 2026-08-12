@@ -53,6 +53,7 @@ target_link_libraries(lyrics-service
         Lyrics::Core
         Lyrics::Logging
         Lyrics::Mpris
+        Lyrics::Version
         Qt6::Core
         Qt6::DBus
         Qt6::Network
@@ -67,6 +68,7 @@ add_executable(lyrics-dockd
 target_link_libraries(lyrics-dockd
     PRIVATE
         Lyrics::Service
+        Lyrics::Version
         Qt6::Core
         Qt6::DBus
         Qt6::Network

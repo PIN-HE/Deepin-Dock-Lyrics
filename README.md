@@ -3,6 +3,12 @@
 `deepin-dock-lyrics` is a MIT-licensed lyric display tool for deepin/UOS v25.
 It follows a user-selected, native Linux MPRIS music player and renders line-synchronised lyrics in the right side of the Dock. It does not play music or manage a music library.
 
+## V1 source archive
+
+`v1.0.0` archives the completed S00-S07 functional source baseline: MPRIS discovery, the daemon and D-Bus contract, LRCLIB lookup and cache, line-synchronised rendering, the Dock applet, and the DTK6 settings application. See [CHANGELOG.md](CHANGELOG.md) for the bilingual release notes.
+
+This tag is a source archive, not a distributable Debian release. The systemd user service, D-Bus activation file, desktop entry, Debian package, clean install/upgrade/uninstall verification, and final release gate remain in S08-S09.
+
 ## MVP scope
 
 - Native Linux MPRIS players only. Windows and Wine players are out of scope.
@@ -32,7 +38,7 @@ libdtk6widget-dev
 libdde-shell-dev
 ```
 
-The S00 settings skeleton uses `DApplication` and `Dtk6::Widget`; `libdtk6widget-dev` is therefore required even before S07 adds the settings window.
+The settings application uses `DApplication` and DTK6 Widgets, so `libdtk6widget-dev` is required.
 
 ## Build and test
 
@@ -51,9 +57,9 @@ common/lyrics-ui/        Theme-aware DTK6/QML design tokens
 daemon/lyrics-dockd/     User-session background daemon
 apps/lyrics-settings/    DTK6 settings application
 dock-applet/             dde-shell Dock applet package and bridge
-config/                  DConfig metadata, added in S08
-systemd/                 User-service metadata, added in S08
-debian/                  Debian packaging, added in S08
+config/                  DConfig metadata
+systemd/                 Reserved for the S08 user service
+debian/                  Reserved for S08 Debian packaging
 specs/                   Implementation specifications
 ```
 
