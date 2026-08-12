@@ -27,6 +27,7 @@
 | 04 | [LRCLIB 客户端与缓存](04-lrclib-client-and-cache.md) | 合规限流的查询、匹配和 SQLite 缓存 | 00、03 |
 | 05 | [LRC 解析与同步引擎](05-lrc-parser-sync-engine.md) | 逐行时间轴、当前行与行内进度 | 00、03、04 |
 | 06 | [Dock 歌词 Applet](06-dock-lyrics-applet.md) | Dock 右侧歌词呈现与会话隐藏 | 00、01、03、05 |
+| 06-1 | [MPRIS 定向音频可视化](06-1-mpris-audio-visualizer.md) | 仅选中播放器的实时音频柱状可视化 | 02、03、06、07 |
 | 07 | [DTK6 设置应用](07-settings-application.md) | 启用、选播放器、偏移和候选确认界面 | 00、01、03、04 |
 | 08 | [配置、用户服务与 Debian 打包](08-runtime-config-and-packaging.md) | 可安装、可启动、可卸载的 `.deb` | 00-07 |
 | 09 | [测试、隐私与发布](09-quality-privacy-and-release.md) | 自动测试、手工测试矩阵和发布门禁 | 00-08 |
@@ -41,9 +42,14 @@ flowchart LR
     S01 --> S06["06 Dock Applet"]
     S03 --> S06
     S05 --> S06
+    S02 --> S061["06-1 MPRIS 定向音频可视化"]
+    S03 --> S061
+    S06 --> S061
+    S07 --> S061
     S01 --> S07["07 设置应用"]
     S04 --> S07
     S03 --> S07
+    S061 --> S08
     S06 --> S08["08 打包"]
     S07 --> S08
     S08 --> S09["09 质量与发布"]
