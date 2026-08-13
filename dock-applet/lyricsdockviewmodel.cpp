@@ -1,6 +1,7 @@
 #include "lyricsdockviewmodel.h"
 
 #include <QDBusConnectionInterface>
+#include <QDBusArgument>
 #include <QDBusMessage>
 #include <QDBusPendingCallWatcher>
 #include <QDBusPendingReply>
@@ -8,6 +9,8 @@
 #include <QProcess>
 #include <QStandardPaths>
 #include <QLoggingCategory>
+
+#include <algorithm>
 
 Q_LOGGING_CATEGORY(lyricsDockViewModelLog, "deepin.lyrics.dock.viewmodel")
 
@@ -24,6 +27,29 @@ QDBusMessage methodCall(const QString &method)
     return QDBusMessage::createMethodCall(
         QString::fromLatin1(serviceName), QString::fromLatin1(objectPath),
         QString::fromLatin1(interfaceName), method);
+}
+
+QVariantList dbusVariantList(const QVariant &value)
+{
+    const QVariantList direct = value.toList();
+    if (!direct.isEmpty() || value.userType() != qMetaTypeId<QDBusArgument>())
+        return direct;
+
+    QVariantList result;
+    const QDBusArgument argument = value.value<QDBusArgument>();
+    if (argument.currentType() != QDBusArgument::BasicType
+        && argument.currentType() != QDBusArgument::ArrayType) {
+        return result;
+    }
+    argument.beginArray();
+    while (!argument.atEnd()) {
+        QVariant item;
+        argument >> item;
+        if (item.isValid())
+            result.append(item);
+    }
+    argument.endArray();
+    return result;
 }
 
 } // namespace
@@ -52,8 +78,12 @@ LyricsDockViewModel::LyricsDockViewModel(const QDBusConnection &connection, QObj
         ++m_serviceGeneration;
         setServiceAvailable(true);
         connectServiceSignals();
-        requestState();
     }
+    // 无论服务当前是否已注册，都发起一次 GetState：名字无主时，method call
+    // 本身会触发 D-Bus activation，把托盘退出的 daemon 拉起来。
+    // Issue GetState regardless of registration: an unowned name is revived by
+    // D-Bus activation triggered through this very method call.
+    requestState();
 }
 
 bool LyricsDockViewModel::serviceAvailable() const
@@ -78,7 +108,7 @@ bool LyricsDockViewModel::sessionHidden() const
 
 QString LyricsDockViewModel::previousText() const
 {
-    return m_previousText;
+    return m_frame.value(QStringLiteral("previousText")).toString();
 }
 
 QString LyricsDockViewModel::currentText() const
@@ -111,14 +141,34 @@ double LyricsDockViewModel::lineProgress() const
     return qBound(0.0, m_frame.value(QStringLiteral("lineProgress")).toDouble(), 1.0);
 }
 
+qint64 LyricsDockViewModel::positionMs() const
+{
+    return std::max<qint64>(0, m_state.value(QStringLiteral("positionMs"), 0).toLongLong());
+}
+
+qint64 LyricsDockViewModel::durationMs() const
+{
+    return m_state.value(QStringLiteral("durationMs"), -1).toLongLong();
+}
+
+QString LyricsDockViewModel::artUrl() const
+{
+    return m_state.value(QStringLiteral("trackArtUrl")).toString();
+}
+
 bool LyricsDockViewModel::visualizerAvailable() const
 {
     return m_state.value(QStringLiteral("visualizerAvailable")).toBool();
 }
 
+bool LyricsDockViewModel::audioVisualizerEnabled() const
+{
+    return m_state.value(QStringLiteral("audioVisualizerEnabled")).toBool();
+}
+
 QVariantList LyricsDockViewModel::visualizerLevels() const
 {
-    return m_state.value(QStringLiteral("visualizerLevels")).toList();
+    return dbusVariantList(m_state.value(QStringLiteral("visualizerLevels")));
 }
 
 void LyricsDockViewModel::setSessionHidden(bool hidden)
@@ -199,20 +249,6 @@ void LyricsDockViewModel::onFrameChanged(const QVariantMap &frame)
     if (m_frame == frame)
         return;
 
-    const QString oldCurrent = currentText();
-    const QString newCurrent = frame.value(QStringLiteral("currentText")).toString();
-    const QString newTrackKey = frame.value(QStringLiteral("trackKey")).toString();
-    const bool sameTrack = !newTrackKey.isEmpty()
-        && newTrackKey == m_frame.value(QStringLiteral("trackKey")).toString();
-
-    // S03 当前未提供前一句字段，仅在同一曲目自然向前推进时保留上一当前句。
-    // S03 does not expose a previous-line field, so retain it only for natural forward progress.
-    const int oldIndex = m_frame.value(QStringLiteral("lineIndex"), -1).toInt();
-    const int newIndex = frame.value(QStringLiteral("lineIndex"), -1).toInt();
-    if (sameTrack && newIndex == oldIndex + 1)
-        m_previousText = oldCurrent;
-    else if (!sameTrack || newIndex != oldIndex)
-        m_previousText.clear();
     m_frame = frame;
     emit frameChanged();
 }
@@ -247,7 +283,10 @@ void LyricsDockViewModel::disconnectServiceSignals()
 
 void LyricsDockViewModel::requestState()
 {
-    if (!m_serviceOwned || m_stateRequestPending)
+    // 未拥有服务名时同样允许发起探测调用：method call 会触发 D-Bus activation。
+    // A probe call is allowed even when the name is unowned: the method call
+    // triggers D-Bus activation, which is how a stopped daemon gets revived.
+    if (m_stateRequestPending)
         return;
 
     m_stateRequestPending = true;
@@ -263,7 +302,12 @@ void LyricsDockViewModel::requestState()
 
         m_stateRequestPending = false;
         if (reply.isError()) {
-            qCWarning(lyricsDockViewModelLog) << "GetState failed:" << reply.error().name();
+            // ServiceUnknown 是"名字无主"的预期结果（本轮调用已触发 activation，
+            // 恢复由 serviceOwnerChanged 驱动）；其余错误才需要告警。
+            // ServiceUnknown is expected when the name is unowned (this call just
+            // triggered activation; recovery is driven by serviceOwnerChanged).
+            if (reply.error().name() != QLatin1String("org.freedesktop.DBus.Error.ServiceUnknown"))
+                qCWarning(lyricsDockViewModelLog) << "GetState failed:" << reply.error().name();
             clearRemoteData();
             setServiceAvailable(false);
             // 服务名可能先于对象注册，有限重试可覆盖 daemon 启动竞态。
@@ -292,10 +336,9 @@ void LyricsDockViewModel::setServiceAvailable(bool available)
 void LyricsDockViewModel::clearRemoteData()
 {
     const bool hadState = !m_state.isEmpty();
-    const bool hadFrame = !m_frame.isEmpty() || !m_previousText.isEmpty();
+    const bool hadFrame = !m_frame.isEmpty();
     m_state.clear();
     m_frame.clear();
-    m_previousText.clear();
     if (hadState)
         emit stateChanged();
     if (hadFrame)

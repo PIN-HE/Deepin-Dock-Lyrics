@@ -133,6 +133,7 @@ void stopWorker(FakeServiceWorker &worker, QThread &thread)
 QVariantMap frame(int lineIndex, const QString &current, const QString &trackKey)
 {
     return {
+        {QStringLiteral("previousText"), lineIndex > 0 ? QStringLiteral("First") : QString()},
         {QStringLiteral("currentText"), current},
         {QStringLiteral("secondaryText"), QStringLiteral("Next")},
         {QStringLiteral("translationText"), QString()},

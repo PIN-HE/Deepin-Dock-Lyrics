@@ -58,8 +58,12 @@ class LRCLIBLyricsAdapterTest final : public QObject
 
 private slots:
     void exactHitCachesAndReplaysOffline();
+    void searchesWithoutDuration();
     void exact404SearchesAndFetchesHighConfidenceRecord();
     void exactProviderErrorDoesNotSearch();
+    void exactHitBelowThresholdPublishesCandidate();
+    void exactHitUnrelatedFallsBackToSearch();
+    void acceptsVersionVariantWithinTenSeconds();
     void publishesAmbiguousCandidatesForUserSelection();
     void instrumentalResultBecomesNegativeCache();
     void negativeCacheBlocksAutomaticButManualBypasses();
@@ -67,6 +71,7 @@ private slots:
     void clearsOnlyLyricsDatabase();
     void recoversCorruptDatabase();
     void userConfirmedMappingOutranksAutomaticMapping();
+    void cachesTranslationLyrics();
 };
 
 TrackIdentity adapterTrack()
@@ -93,8 +98,21 @@ ProviderRecord adapterRecord(const QString &id = QStringLiteral("1000000"),
     record.payload.recordId = id;
     record.payload.plainLyrics = QStringLiteral("First line");
     record.payload.syncedLyrics = QStringLiteral("[00:00.00]First line");
+    record.payload.translationLyrics = QStringLiteral("[00:00.00]翻译");
     record.payload.timing = TimingCapability::Line;
     return record;
+}
+
+void LRCLIBLyricsAdapterTest::cachesTranslationLyrics()
+{
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    SqliteLyricsCache cache(directory.filePath(QStringLiteral("lyrics.sqlite")));
+    const auto now = QDateTime::currentDateTimeUtc();
+    QVERIFY(cache.store(QStringLiteral("key"), adapterRecord(), 1.0, true, now));
+    const auto cached = cache.find(QStringLiteral("key"), now.addSecs(1));
+    QVERIFY(cached.has_value());
+    QCOMPARE(cached->payload.translationLyrics, QStringLiteral("[00:00.00]翻译"));
 }
 
 ProviderResult successfulRecord(const ProviderRecord &record)
@@ -129,6 +147,32 @@ void LRCLIBLyricsAdapterTest::exactHitCachesAndReplaysOffline()
     QCOMPARE(offlineProvider.exactCalls, 0);
     QCOMPARE(offlineReady.constFirst().constFirst().value<LyricPayload>().recordId,
              QStringLiteral("1000000"));
+}
+
+void LRCLIBLyricsAdapterTest::searchesWithoutDuration()
+{
+    QTemporaryDir directory;
+    SqliteLyricsCache cache(directory.filePath(QStringLiteral("lyrics.sqlite")));
+    FakeLyricProvider provider;
+    TestNullLogSink sink;
+    LogEngine logger(sink);
+    LrclibLyricsAdapter adapter(provider, cache, logger);
+
+    TrackIdentity track = adapterTrack();
+    track.durationMs = -1;
+    track.searchable = true;
+    adapter.search(track);
+
+    QCOMPARE(provider.exactCalls, 0);
+    QCOMPARE(provider.searchCalls, 1);
+
+    ProviderResult searchResult;
+    searchResult.kind = ProviderResultKind::Success;
+    ProviderRecord candidate = adapterRecord();
+    candidate.artistName = QStringLiteral("Other Performer");
+    searchResult.records = {candidate};
+    provider.respondSearch(searchResult);
+    QCOMPARE(provider.byIdCalls, 0);
 }
 
 void LRCLIBLyricsAdapterTest::exact404SearchesAndFetchesHighConfidenceRecord()
@@ -173,6 +217,100 @@ void LRCLIBLyricsAdapterTest::exactProviderErrorDoesNotSearch()
     provider.respondExact(invalid);
     QCOMPARE(failedSpy.count(), 1);
     QCOMPARE(provider.searchCalls, 0);
+}
+
+void LRCLIBLyricsAdapterTest::exactHitBelowThresholdPublishesCandidate()
+{
+    QTemporaryDir directory;
+    SqliteLyricsCache cache(directory.filePath(QStringLiteral("lyrics.sqlite")));
+    FakeLyricProvider provider;
+    TestNullLogSink sink;
+    LogEngine logger(sink);
+    LrclibLyricsAdapter adapter(provider, cache, logger);
+    QSignalSpy candidateSpy(&adapter, &LyricsPort::candidatesChanged);
+    QSignalSpy failedSpy(&adapter, &LyricsPort::failed);
+
+    // 精确命中但身份不完全匹配（0.60-0.84）：发布候选，不报错误、不降级搜索。
+    // Exact hit with a sub-threshold identity (0.60-0.84): publish as candidate
+    // instead of failing or falling back to search.
+    adapter.search(adapterTrack());
+    ProviderRecord ambiguous = adapterRecord(QStringLiteral("3000000"));
+    ambiguous.artistName = QStringLiteral("Other Performer");
+    const double score = scoreLyricCandidate(adapterTrack(), ambiguous);
+    QVERIFY(score >= 0.60);
+    QVERIFY(score < 0.85);
+    provider.respondExact(successfulRecord(ambiguous));
+
+    QCOMPARE(failedSpy.count(), 0);
+    QCOMPARE(candidateSpy.count(), 1);
+    QCOMPARE(provider.searchCalls, 0);
+
+    // 无效候选被拒绝，发布出的候选可被用户确认。
+    // Unknown candidate IDs are rejected; the published one is selectable.
+    adapter.selectCandidate(QStringLiteral("lrclib"), QStringLiteral("9999999"));
+    QCOMPARE(provider.byIdCalls, 0);
+    QCOMPARE(failedSpy.count(), 1);
+
+    adapter.selectCandidate(QStringLiteral("lrclib"), QStringLiteral("3000000"));
+    QCOMPARE(provider.byIdCalls, 1);
+}
+
+void LRCLIBLyricsAdapterTest::exactHitUnrelatedFallsBackToSearch()
+{
+    QTemporaryDir directory;
+    SqliteLyricsCache cache(directory.filePath(QStringLiteral("lyrics.sqlite")));
+    FakeLyricProvider provider;
+    TestNullLogSink sink;
+    LogEngine logger(sink);
+    LrclibLyricsAdapter adapter(provider, cache, logger);
+    QSignalSpy candidateSpy(&adapter, &LyricsPort::candidatesChanged);
+
+    // 精确命中但记录与曲目身份不符（<0.60）：退化为候选搜索。
+    // Exact hit with an unrelated identity (<0.60): fall back to candidate search.
+    adapter.search(adapterTrack());
+    ProviderRecord unrelated = adapterRecord(QStringLiteral("4000000"));
+    unrelated.trackName = QStringLiteral("Totally Different Song");
+    unrelated.artistName = QStringLiteral("Somebody Else");
+    const double score = scoreLyricCandidate(adapterTrack(), unrelated);
+    QVERIFY(score < 0.60);
+    provider.respondExact(successfulRecord(unrelated));
+
+    QCOMPARE(provider.searchCalls, 1);
+    QCOMPARE(candidateSpy.count(), 0);
+}
+
+void LRCLIBLyricsAdapterTest::acceptsVersionVariantWithinTenSeconds()
+{
+    QTemporaryDir directory;
+    SqliteLyricsCache cache(directory.filePath(QStringLiteral("lyrics.sqlite")));
+    FakeLyricProvider provider;
+    TestNullLogSink sink;
+    LogEngine logger(sink);
+    LrclibLyricsAdapter adapter(provider, cache, logger);
+    QSignalSpy readySpy(&adapter, &LyricsPort::lyricsReady);
+    QSignalSpy candidateSpy(&adapter, &LyricsPort::candidatesChanged);
+
+    // 搜索候选与播放器时长差 4 秒（同曲不同版本）：应自动采纳，不再卡 2 秒硬门。
+    // A candidate 4s off the player's duration (version variant) must be
+    // auto-accepted instead of being blocked by the old 2s hard gate.
+    TrackIdentity track = adapterTrack();
+    track.durationMs = 259000;
+    adapter.search(track);
+    ProviderResult notFound;
+    notFound.kind = ProviderResultKind::NotFound;
+    provider.respondExact(notFound);
+
+    ProviderRecord variant = adapterRecord(QStringLiteral("5000000"));
+    variant.durationMs = 263000;
+    ProviderResult searchResult;
+    searchResult.kind = ProviderResultKind::Success;
+    searchResult.records = {variant};
+    provider.respondSearch(searchResult);
+
+    QCOMPARE(candidateSpy.count(), 0);
+    QCOMPARE(provider.byIdCalls, 1);
+    provider.respondById(successfulRecord(variant));
+    QCOMPARE(readySpy.count(), 1);
 }
 
 void LRCLIBLyricsAdapterTest::publishesAmbiguousCandidatesForUserSelection()
@@ -226,7 +364,7 @@ void LRCLIBLyricsAdapterTest::instrumentalResultBecomesNegativeCache()
     adapter.search(adapterTrack());
     ProviderRecord instrumental = adapterRecord();
     instrumental.instrumental = true;
-    instrumental.payload = {QStringLiteral("lrclib"), instrumental.id, {}, {},
+    instrumental.payload = {QStringLiteral("lrclib"), instrumental.id, {}, {}, {},
                             TimingCapability::None};
     provider.respondExact(successfulRecord(instrumental));
     QCOMPARE(noLyricsSpy.count(), 1);

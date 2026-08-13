@@ -70,8 +70,14 @@ SettingsViewModel::SettingsViewModel(const QDBusConnection &connection, QObject 
         m_serviceOwned = true;
         ++m_serviceGeneration;
         connectServiceSignals();
-        requestState();
     }
+    // 无论服务当前是否已注册，都发起一次 GetState：
+    // - 已注册：正常拉取初始状态；
+    // - 未注册：method call 本身会触发 D-Bus activation，拉起 systemd 用户服务
+    //   （daemon 通过托盘退出后，本调用就是唯一的复活入口）。
+    // Issue GetState regardless of registration: when the name is unowned, the
+    // method call itself triggers D-Bus activation of the systemd user service.
+    requestState();
 }
 
 bool SettingsViewModel::serviceAvailable() const { return m_serviceAvailable; }
@@ -227,7 +233,10 @@ void SettingsViewModel::disconnectServiceSignals()
 
 void SettingsViewModel::requestState()
 {
-    if (!m_serviceOwned || m_stateRequestPending)
+    // 未拥有服务名时同样允许发起探测调用：method call 会触发 D-Bus activation。
+    // A probe call is allowed even when the name is unowned: the method call
+    // triggers D-Bus activation, which is how a stopped daemon gets revived.
+    if (m_stateRequestPending)
         return;
     m_stateRequestPending = true;
     const quint64 generation = m_serviceGeneration;
@@ -241,7 +250,12 @@ void SettingsViewModel::requestState()
             return;
         m_stateRequestPending = false;
         if (reply.isError()) {
-            qCWarning(settingsViewModelLog) << "GetState failed:" << reply.error().name();
+            // ServiceUnknown 是"名字无主"的预期结果（本轮调用已触发 activation，
+            // 恢复由 serviceOwnerChanged 驱动）；其余错误才需要告警。
+            // ServiceUnknown is expected when the name is unowned (this call just
+            // triggered activation; recovery is driven by serviceOwnerChanged).
+            if (reply.error().name() != QLatin1String("org.freedesktop.DBus.Error.ServiceUnknown"))
+                qCWarning(settingsViewModelLog) << "GetState failed:" << reply.error().name();
             setServiceAvailable(false);
             if (m_serviceOwned && m_stateRetryCount < maximumStateRetryCount) {
                 ++m_stateRetryCount;

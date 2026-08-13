@@ -143,6 +143,31 @@ public:
     bool failConversion = false;
 };
 
+class FakeExternalFramePort final : public ExternalFramePort
+{
+    Q_OBJECT
+
+public:
+    using ExternalFramePort::ExternalFramePort;
+
+    void setSelectedPlayer(const QString &busName) override
+    {
+        lastSelected = busName;
+        activeValue = busName == QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    }
+    bool active() const override { return activeValue; }
+
+    void publishFrame(const ExternalLyricFrame &frame) { emit frameAvailable(frame); }
+    void publishStopped()
+    {
+        activeValue = false;
+        emit stopped();
+    }
+
+    QString lastSelected;
+    bool activeValue = false;
+};
+
 class LyricsServiceControllerTest final : public QObject
 {
     Q_OBJECT
@@ -158,8 +183,10 @@ private slots:
     void restartsLookupAfterReenable();
     void convertsTraditionalLyricsBeforeParsing();
     void keepsSourceLyricsWhenConversionFails();
-    void limitsVisualizerToPlayingNoLyricsState();
+    void keepsVisualizerActiveWhenExplicitlyEnabled();
     void keepsVisualizerDisabledByDefault();
+    void publishesExternalFramesAndSkipsLookup();
+    void restoresLookupAfterExternalFrameStops();
 };
 
 void LyricsServiceControllerTest::followsCoreStateTransitions()
@@ -256,7 +283,10 @@ void LyricsServiceControllerTest::suppressesPositionOnlyStateUpdates()
 
     player.currentSnapshot.positionMs = 500;
     emit player.snapshotChanged(player.currentSnapshot);
-    QCOMPARE(stateSpy.count(), 0);
+    // 播放位置现在需要供详情弹窗进度条使用，因此位置变化会发布状态。
+    // Position changes are published because the details popup uses them for playback progress.
+    QCOMPARE(stateSpy.count(), 1);
+    QCOMPARE(controller.state().value(QStringLiteral("positionMs")).toLongLong(), 500);
 }
 
 void LyricsServiceControllerTest::waitsForStableTrackBeforeLookup()
@@ -482,7 +512,7 @@ void LyricsServiceControllerTest::keepsSourceLyricsWhenConversionFails()
              QStringLiteral("後來仍是原文"));
 }
 
-void LyricsServiceControllerTest::limitsVisualizerToPlayingNoLyricsState()
+void LyricsServiceControllerTest::keepsVisualizerActiveWhenExplicitlyEnabled()
 {
     FakePlayerPort player;
     player.selected = QStringLiteral("org.mpris.MediaPlayer2.demo");
@@ -511,15 +541,16 @@ void LyricsServiceControllerTest::limitsVisualizerToPlayingNoLyricsState()
     QTRY_VERIFY(visualizer.enabledValue);
 
     lyrics.publishLyrics(QStringLiteral("[00:01.00]Line"));
-    QTRY_VERIFY(visualizer.stopCount > 0);
-    QCOMPARE(controller.state().value(QStringLiteral("visualizerAvailable")).toBool(), false);
+    QTRY_VERIFY(visualizer.enabledValue);
 
     emit lyrics.failed(QStringLiteral("provider-failed"));
     QTRY_VERIFY(visualizer.enabledValue);
     QCOMPARE(visualizer.lastProcessId, 4321);
 
     QVERIFY(controller.setAudioVisualizerEnabled(false));
-    QVERIFY(visualizer.stopCount > 1);
+    // With the option off, fallback visualization remains active while lyrics are unavailable.
+    // 关闭选项后，在歌词不可用状态仍保留可视化作为降级显示。
+    QVERIFY(visualizer.enabledValue);
 }
 
 void LyricsServiceControllerTest::keepsVisualizerDisabledByDefault()
@@ -544,8 +575,91 @@ void LyricsServiceControllerTest::keepsVisualizerDisabledByDefault()
     player.publishTrack(player.currentSnapshot.track);
     emit lyrics.noLyrics();
 
-    QVERIFY(!visualizer.enabledValue);
-    QCOMPARE(controller.state().value(QStringLiteral("visualizerAvailable")).toBool(), false);
+    QVERIFY(visualizer.enabledValue);
+    QCOMPARE(controller.state().value(QStringLiteral("audioVisualizerEnabled")).toBool(), false);
+}
+
+void LyricsServiceControllerTest::publishesExternalFramesAndSkipsLookup()
+{
+    FakePlayerPort player;
+    player.selected = QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    player.selectedAvailable = true;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.currentSnapshot.track.searchable = true;
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    FakeLyricsPort lyrics;
+    FakeExternalFramePort external;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    LyricsServiceController controller(player, settings, logger, nullptr, nullptr);
+    controller.setExternalFramePort(&external);
+    QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
+
+    controller.start();
+    QCOMPARE(external.lastSelected, QStringLiteral("org.mpris.MediaPlayer2.ter_music"));
+
+    // 外部帧到达：直接发布，来源 ter-music，状态 LyricsReady。
+    // An external frame is published as-is with source ter-music.
+    ExternalLyricFrame frame;
+    frame.currentText = QStringLiteral("Line A");
+    frame.secondaryText = QStringLiteral("Line B");
+    frame.lineIndex = 0;
+    frame.timing = TimingCapability::Line;
+    frame.revision = 1;
+    external.publishFrame(frame);
+    QCOMPARE(frameSpy.count(), 1);
+    const QVariantMap published = frameSpy.constFirst().constFirst().toMap();
+    QCOMPARE(published.value(QStringLiteral("currentText")).toString(), QStringLiteral("Line A"));
+    QCOMPARE(published.value(QStringLiteral("secondaryText")).toString(), QStringLiteral("Line B"));
+    QCOMPARE(published.value(QStringLiteral("source")).toString(), QStringLiteral("ter-music"));
+    QCOMPARE(controller.status(), ServiceStatus::LyricsReady);
+
+    // 外部源活跃时切歌：跳过 LRCLIB 查询链。
+    // While the external source is active, track changes skip the lookup chain.
+    TrackIdentity track;
+    track.title = QStringLiteral("New Song");
+    track.artists = {QStringLiteral("Artist")};
+    track.searchable = true;
+    player.publishTrack(track);
+    QCOMPARE(lyrics.lastTrack.title, QString());
+}
+
+void LyricsServiceControllerTest::restoresLookupAfterExternalFrameStops()
+{
+    FakePlayerPort player;
+    player.selected = QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    player.selectedAvailable = true;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.currentSnapshot.track.searchable = true;
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    FakeLyricsPort lyrics;
+    FakeExternalFramePort external;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    LyricsServiceController controller(player, settings, logger, &lyrics, nullptr);
+    controller.setExternalFramePort(&external);
+    controller.start();
+
+    ExternalLyricFrame frame;
+    frame.currentText = QStringLiteral("Line A");
+    frame.secondaryText = QStringLiteral("Line B");
+    frame.timing = TimingCapability::Line;
+    external.publishFrame(frame);
+    QCOMPARE(controller.status(), ServiceStatus::LyricsReady);
+
+    // 外部源停止：回到常规状态机，后续切歌恢复 LRCLIB 查询。
+    // After the source stops, the regular state machine resumes and track
+    // changes trigger the lookup chain again.
+    external.publishStopped();
+    TrackIdentity track;
+    track.title = QStringLiteral("New Song");
+    track.artists = {QStringLiteral("Artist")};
+    track.searchable = true;
+    player.publishTrack(track);
+    QCOMPARE(lyrics.lastTrack.title, QStringLiteral("New Song"));
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

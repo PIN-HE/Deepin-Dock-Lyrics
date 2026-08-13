@@ -5,10 +5,13 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QLoggingCategory>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTimeZone>
 #include <QUuid>
+
+Q_LOGGING_CATEGORY(lyricsCacheLog, "deepin.lyrics.dock.cache")
 
 namespace deepin::lyrics {
 
@@ -54,6 +57,9 @@ bool SqliteLyricsCache::open(QString *errorCode)
     m_database.setDatabaseName(m_databasePath);
     if (m_database.open() && createSchema(errorCode))
         return true;
+    qCWarning(lyricsCacheLog) << "SQLite open failed" << m_databasePath
+                              << m_database.lastError().text()
+                              << "driver:" << m_database.driverName();
     return recoverCorruptDatabase(errorCode);
 }
 
@@ -65,6 +71,7 @@ std::optional<CachedLyrics> SqliteLyricsCache::find(const QString &trackKey,
     QSqlQuery query(m_database);
     query.prepare(QStringLiteral(
         "SELECT r.provider_id, r.record_id, r.synced_lyrics, r.plain_lyrics, "
+        "r.translation_lyrics, "
         "m.confidence, m.user_confirmed, r.fetched_at "
         "FROM track_mappings m JOIN lyrics_records r ON r.record_id=m.record_id "
         "WHERE m.track_key=? AND m.created_at>=? "
@@ -79,11 +86,12 @@ std::optional<CachedLyrics> SqliteLyricsCache::find(const QString &trackKey,
     result.payload.recordId = query.value(1).toString();
     result.payload.syncedLyrics = query.value(2).toString();
     result.payload.plainLyrics = query.value(3).toString();
+    result.payload.translationLyrics = query.value(4).toString();
     result.payload.timing = !result.payload.syncedLyrics.isEmpty()
         ? TimingCapability::Line
         : (!result.payload.plainLyrics.isEmpty() ? TimingCapability::Plain : TimingCapability::None);
-    result.confidence = query.value(4).toDouble();
-    result.userConfirmed = query.value(5).toBool();
+    result.confidence = query.value(5).toDouble();
+    result.userConfirmed = query.value(6).toBool();
     return result;
 }
 
@@ -96,18 +104,21 @@ bool SqliteLyricsCache::store(const QString &trackKey,
     if (!open() || !m_database.transaction())
         return false;
     const QByteArray content = record.payload.syncedLyrics.toUtf8() + '\0'
-        + record.payload.plainLyrics.toUtf8();
+        + record.payload.plainLyrics.toUtf8() + '\0'
+        + record.payload.translationLyrics.toUtf8();
     const QByteArray hash = QCryptographicHash::hash(content, QCryptographicHash::Sha256).toHex();
 
     QSqlQuery recordQuery(m_database);
     recordQuery.prepare(QStringLiteral(
         "INSERT OR REPLACE INTO lyrics_records "
-        "(record_id, provider_id, synced_lyrics, plain_lyrics, content_hash, fetched_at, parse_version) "
-        "VALUES (?, ?, ?, ?, ?, ?, 1)"));
+        "(record_id, provider_id, synced_lyrics, plain_lyrics, translation_lyrics, content_hash, fetched_at, parse_version) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 2)"));
     recordQuery.addBindValue(record.id);
-    recordQuery.addBindValue(QStringLiteral("lrclib"));
+    recordQuery.addBindValue(record.payload.providerId.isEmpty()
+                                 ? QStringLiteral("lrclib") : record.payload.providerId);
     recordQuery.addBindValue(record.payload.syncedLyrics);
     recordQuery.addBindValue(record.payload.plainLyrics);
+    recordQuery.addBindValue(record.payload.translationLyrics);
     recordQuery.addBindValue(QString::fromLatin1(hash));
     recordQuery.addBindValue(now.toSecsSinceEpoch());
 
@@ -133,7 +144,20 @@ bool SqliteLyricsCache::store(const QString &trackKey,
     negativeQuery.prepare(QStringLiteral("DELETE FROM negative_results WHERE track_key=?"));
     negativeQuery.addBindValue(trackKey);
     const bool success = recordQuery.exec() && mappingQuery.exec() && negativeQuery.exec();
-    return success ? m_database.commit() : (m_database.rollback(), false);
+    if (!success) {
+        qCWarning(lyricsCacheLog) << "SQLite store failed" << m_databasePath
+                                  << "record:" << recordQuery.lastError().text()
+                                  << "mapping:" << mappingQuery.lastError().text()
+                                  << "negative:" << negativeQuery.lastError().text();
+        m_database.rollback();
+        return false;
+    }
+    if (!m_database.commit()) {
+        qCWarning(lyricsCacheLog) << "SQLite commit failed" << m_databasePath
+                                  << m_database.lastError().text();
+        return false;
+    }
+    return true;
 }
 
 bool SqliteLyricsCache::isNegative(const QString &trackKey, const QDateTime &now)
@@ -212,11 +236,11 @@ bool SqliteLyricsCache::createSchema(QString *errorCode)
 {
     QSqlQuery query(m_database);
     const bool success = execute(query, QStringLiteral("PRAGMA journal_mode=WAL"))
-        && execute(query, QStringLiteral("PRAGMA user_version=1"))
         && execute(query, QStringLiteral(
                "CREATE TABLE IF NOT EXISTS lyrics_records ("
                "record_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL, synced_lyrics TEXT NOT NULL, "
-               "plain_lyrics TEXT NOT NULL, content_hash TEXT NOT NULL, fetched_at INTEGER NOT NULL, "
+               "plain_lyrics TEXT NOT NULL, translation_lyrics TEXT NOT NULL DEFAULT '', "
+               "content_hash TEXT NOT NULL, fetched_at INTEGER NOT NULL, "
                "parse_version INTEGER NOT NULL)"))
         && execute(query, QStringLiteral(
                "CREATE TABLE IF NOT EXISTS track_mappings ("
@@ -229,6 +253,32 @@ bool SqliteLyricsCache::createSchema(QString *errorCode)
         && execute(query, QStringLiteral(
                "CREATE TABLE IF NOT EXISTS request_cooldown ("
                "provider_id TEXT PRIMARY KEY, until_time INTEGER NOT NULL)"));
+    if (!success) {
+        // 记录失败的具体 SQL 错误，避免排障时只能盲猜。
+        // Record the concrete SQL error so failures are not diagnosed blindly.
+        qCWarning(lyricsCacheLog) << "SQLite schema creation failed"
+                                  << query.lastError().text();
+        if (errorCode)
+            *errorCode = QStringLiteral("database-failed");
+    }
+    if (success) {
+        // Migrate V1 databases created before translations were cached.
+        // 迁移未保存翻译歌词的 V1 数据库。
+        bool hasTranslationColumn = false;
+        QSqlQuery columns(m_database);
+        if (columns.exec(QStringLiteral("PRAGMA table_info(lyrics_records)"))) {
+            while (columns.next()) {
+                if (columns.value(1).toString() == QStringLiteral("translation_lyrics")) {
+                    hasTranslationColumn = true;
+                    break;
+                }
+            }
+        }
+        if (!hasTranslationColumn)
+            return execute(query, QStringLiteral(
+                "ALTER TABLE lyrics_records ADD COLUMN translation_lyrics TEXT NOT NULL DEFAULT ''"));
+        execute(query, QStringLiteral("PRAGMA user_version=2"));
+    }
     if (!success && errorCode)
         *errorCode = QStringLiteral("database-failed");
     return success;
@@ -254,6 +304,8 @@ bool SqliteLyricsCache::recoverCorruptDatabase(QString *errorCode)
     m_database = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_connectionName);
     m_database.setDatabaseName(m_databasePath);
     if (!m_database.open()) {
+        qCWarning(lyricsCacheLog) << "SQLite reopen failed after corruption" << m_databasePath
+                                  << m_database.lastError().text();
         if (errorCode)
             *errorCode = QStringLiteral("database-failed");
         return false;

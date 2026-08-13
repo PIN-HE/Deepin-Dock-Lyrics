@@ -56,8 +56,8 @@ SettingsWindow::SettingsWindow(SettingsViewModel &viewModel, QWidget *parent)
     setObjectName(QStringLiteral("settingsWindow"));
     setMinimumSize(560, 600);
     resize(windowWidth, windowHeight);
-    titlebar()->setTitle(tr("Dock Lyrics"));
-    titlebar()->setIcon(DIconTheme::findQIcon(QStringLiteral("music")));
+    titlebar()->setTitle(tr("Deepin Dock Lyrics"));
+    titlebar()->setIcon(QIcon(QStringLiteral(":/icons/deepin-lyrics-dock.png")));
     titlebar()->setFullScreenButtonVisible(false);
 
     m_pages = new QStackedWidget(this);
@@ -108,9 +108,9 @@ QWidget *SettingsWindow::createIntroPage()
     layout->addStretch();
 
     auto *icon = new QLabel(page);
-    icon->setPixmap(DIconTheme::findQIcon(QStringLiteral("music")).pixmap(56, 56));
+    icon->setPixmap(QIcon(QStringLiteral(":/icons/deepin-lyrics-dock.png")).pixmap(56, 56));
     icon->setAlignment(Qt::AlignCenter);
-    icon->setAccessibleName(tr("Dock Lyrics icon"));
+    icon->setAccessibleName(tr("Deepin Dock Lyrics icon"));
     layout->addWidget(icon, 0, Qt::AlignCenter);
 
     m_introTitle = new QLabel(tr("Show lyrics in the Dock"), page);
@@ -396,8 +396,18 @@ void SettingsWindow::refreshUi()
         const QSignalBlocker visualizerBlocker(m_audioVisualizerSwitch);
         m_audioVisualizerSwitch->setChecked(
             state.value(QStringLiteral("audioVisualizerEnabled")).toBool());
-        populatePlayers(state.value(QStringLiteral("availablePlayers")).toList(),
-                        state.value(QStringLiteral("playerBusName")).toString());
+        // 位置轮询会使 StateChanged 高频到达；播放器列表与选中项未变化时不重建
+        // 下拉框，否则每次位置更新都会打断用户的选择操作（下拉框"抽搐"）。
+        // Position polling fires StateChanged frequently; rebuild the player
+        // combo only when the player list or selection actually changed,
+        // otherwise every position tick would interrupt the user's selection.
+        const QVariantList players = state.value(QStringLiteral("availablePlayers")).toList();
+        const QString selectedPlayer = state.value(QStringLiteral("playerBusName")).toString();
+        if (players != m_lastPlayers || selectedPlayer != m_lastSelectedPlayer) {
+            populatePlayers(players, selectedPlayer);
+            m_lastPlayers = players;
+            m_lastSelectedPlayer = selectedPlayer;
+        }
     }
     m_updatingUi = false;
 
@@ -445,12 +455,9 @@ void SettingsWindow::refreshFrame()
 
 void SettingsWindow::refreshCandidates()
 {
-    QVariantList candidates = m_viewModel.candidates();
-    std::stable_sort(candidates.begin(), candidates.end(), [](const QVariant &left,
-                                                              const QVariant &right) {
-        return left.toMap().value(QStringLiteral("score")).toDouble()
-            > right.toMap().value(QStringLiteral("score")).toDouble();
-    });
+    // Keep the coordinator's order; re-sorting here can detach the visible row from its payload.
+    // 保留协调器排序；设置页二次排序会导致可见行与实际候选数据错位。
+    const QVariantList candidates = m_viewModel.candidates();
     m_candidateList->clear();
     for (const QVariant &value : candidates) {
         const QVariantMap candidate = value.toMap();

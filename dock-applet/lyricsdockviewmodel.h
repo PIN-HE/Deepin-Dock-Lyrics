@@ -21,7 +21,11 @@ class LyricsDockViewModel final : public QObject
     Q_PROPERTY(QString timingCapability READ timingCapability NOTIFY frameChanged FINAL)
     Q_PROPERTY(QString source READ source NOTIFY frameChanged FINAL)
     Q_PROPERTY(double lineProgress READ lineProgress NOTIFY frameChanged FINAL)
+    Q_PROPERTY(qint64 positionMs READ positionMs NOTIFY stateChanged FINAL)
+    Q_PROPERTY(qint64 durationMs READ durationMs NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QString artUrl READ artUrl NOTIFY stateChanged FINAL)
     Q_PROPERTY(bool visualizerAvailable READ visualizerAvailable NOTIFY stateChanged FINAL)
+    Q_PROPERTY(bool audioVisualizerEnabled READ audioVisualizerEnabled NOTIFY stateChanged FINAL)
     Q_PROPERTY(QVariantList visualizerLevels READ visualizerLevels NOTIFY stateChanged FINAL)
 
 public:
@@ -40,7 +44,11 @@ public:
     QString timingCapability() const;
     QString source() const;
     double lineProgress() const;
+    qint64 positionMs() const;
+    qint64 durationMs() const;
+    QString artUrl() const;
     bool visualizerAvailable() const;
+    bool audioVisualizerEnabled() const;
     QVariantList visualizerLevels() const;
 
     Q_INVOKABLE void setSessionHidden(bool hidden);
@@ -70,7 +78,6 @@ private:
     QDBusServiceWatcher m_serviceWatcher;
     QVariantMap m_state;
     QVariantMap m_frame;
-    QString m_previousText;
     QTimer m_stateRetryTimer;
     bool m_serviceAvailable = false;
     bool m_serviceOwned = false;

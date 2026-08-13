@@ -7,6 +7,7 @@
 #include <QDBusPendingReply>
 #include <QDBusVariant>
 #include <QLoggingCategory>
+#include <QUrl>
 
 #include <algorithm>
 
@@ -66,6 +67,7 @@ bool sameTrack(const TrackIdentity &left, const TrackIdentity &right)
         && left.artists == right.artists
         && left.album == right.album
         && left.durationMs == right.durationMs
+        && left.mediaUrl == right.mediaUrl
         && left.playerBusName == right.playerBusName;
 }
 
@@ -76,6 +78,12 @@ TrackIdentity trackFromMetadata(const QVariantMap &metadata, const QString &busN
     track.title = unwrapped(metadata.value(QStringLiteral("xesam:title"))).toString().trimmed();
     track.artists = stringList(metadata.value(QStringLiteral("xesam:artist")));
     track.album = unwrapped(metadata.value(QStringLiteral("xesam:album"))).toString().trimmed();
+    track.mediaUrl = unwrapped(metadata.value(QStringLiteral("xesam:url"))).toString().trimmed();
+    const QUrl artUrl(unwrapped(metadata.value(QStringLiteral("mpris:artUrl"))).toString());
+    if (artUrl.isLocalFile())
+        track.artUrl = artUrl.toString();
+    else if (artUrl.scheme().isEmpty() && !artUrl.path().isEmpty())
+        track.artUrl = QUrl::fromLocalFile(artUrl.path()).toString();
 
     bool durationValid = false;
     const qlonglong durationUs = unwrapped(metadata.value(QStringLiteral("mpris:length")))
@@ -83,14 +91,13 @@ TrackIdentity trackFromMetadata(const QVariantMap &metadata, const QString &busN
     if (durationValid && durationUs > 0)
         track.durationMs = durationUs / 1000;
 
-    // LRCLIB 精确匹配依赖标题、艺人和时长，缺少任一项都不应联网。
-    // LRCLIB exact matching needs title, artist, and duration; never query without all three.
+    // 标题和艺人足够启动候选检索；时长存在时再启用精确匹配。
+    // Title and artist are enough for candidate lookup; duration enables exact lookup when present.
     track.searchable = !track.title.isEmpty()
         && !track.artists.isEmpty()
         && std::any_of(track.artists.cbegin(), track.artists.cend(), [](const QString &artist) {
                return !artist.trimmed().isEmpty();
-           })
-        && track.durationMs > 0;
+           });
     return track;
 }
 

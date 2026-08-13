@@ -174,6 +174,7 @@ class SettingsViewModelTest final : public QObject
 private slots:
     void followsStateAndInvokesSettingsOperations();
     void survivesMissingService();
+    void recoversWhenServiceAppearsLater();
 };
 
 void SettingsViewModelTest::followsStateAndInvokesSettingsOperations()
@@ -250,6 +251,29 @@ void SettingsViewModelTest::survivesMissingService()
     QCOMPARE(failureSpy.constFirst().constFirst().toString(),
              QStringLiteral("service-unavailable"));
     QDBusConnection::disconnectFromBus(connectionName);
+}
+
+void SettingsViewModelTest::recoversWhenServiceAppearsLater()
+{
+    const QString serviceConnectionName = QStringLiteral("settings-service-late");
+    const QString clientConnectionName = QStringLiteral("settings-client-late");
+    QDBusConnection client = QDBusConnection::connectToBus(
+        QDBusConnection::SessionBus, clientConnectionName);
+    SettingsViewModel model(client);
+    QVERIFY(!model.serviceAvailable());
+
+    // 模拟 D-Bus activation 语义：服务在 model 之后注册，owner change 驱动恢复。
+    // Simulates D-Bus activation: the service registers after the model, and
+    // the owner-change watcher drives recovery.
+    QThread serviceThread;
+    FakeServiceWorker service(serviceConnectionName);
+    QVERIFY(startWorker(service, serviceThread));
+    QTRY_VERIFY(model.serviceAvailable());
+    QTRY_COMPARE(model.state().value(QStringLiteral("status")).toString(),
+                 QStringLiteral("Disabled"));
+
+    stopWorker(service, serviceThread);
+    QDBusConnection::disconnectFromBus(clientConnectionName);
 }
 
 QTEST_GUILESS_MAIN(SettingsViewModelTest)

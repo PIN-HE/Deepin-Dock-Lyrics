@@ -61,5 +61,13 @@
         <source>Plain lyrics</source>
         <translation>纯文本歌词</translation>
     </message>
+    <message>
+        <source>Audio visualizer</source>
+        <translation>音频可视化</translation>
+    </message>
+    <message>
+        <source>Show current player's audio visualizer</source>
+        <translation>显示当前播放器的音频可视化</translation>
+    </message>
 </context>
 </TS>

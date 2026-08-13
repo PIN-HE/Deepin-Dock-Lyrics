@@ -3,17 +3,17 @@
 <TS version="2.1" language="zh_CN" sourcelanguage="en">
 <context>
     <name>QObject</name>
-    <message><source>Dock Lyrics</source><translation>任务栏歌词</translation></message>
+    <message><source>Dock Lyrics</source><translation>Deepin状态栏歌词</translation></message>
     <message><source>Display synchronized lyrics in the Deepin Dock.</source><translation>在 deepin 任务栏中显示同步歌词。</translation></message>
 </context>
 <context>
     <name>SettingsWindow</name>
-    <message><source>Dock Lyrics</source><translation>任务栏歌词</translation></message>
-    <message><source>Dock Lyrics icon</source><translation>任务栏歌词图标</translation></message>
+    <message><source>Dock Lyrics</source><translation>Deepin状态栏歌词</translation></message>
+    <message><source>Dock Lyrics icon</source><translation>Deepin状态栏歌词图标</translation></message>
     <message><source>Show lyrics in the Dock</source><translation>在任务栏中显示歌词</translation></message>
     <message><source>Follow the current song from a compatible music player and display synced lyrics in the Dock.</source><translation>跟随兼容音乐播放器的当前歌曲，在任务栏中显示同步歌词。</translation></message>
-    <message><source>Start Dock Lyrics</source><translation>启动任务栏歌词</translation></message>
-    <message><source>Enable Dock Lyrics</source><translation>启用任务栏歌词</translation></message>
+    <message><source>Start Dock Lyrics</source><translation>启动Deepin状态栏歌词</translation></message>
+    <message><source>Enable Dock Lyrics</source><translation>启用Deepin状态栏歌词</translation></message>
     <message><source>General</source><translation>常规</translation></message>
     <message><source>Pause or resume lyric lookup and Dock display.</source><translation>暂停或恢复歌词检索和任务栏显示。</translation></message>
     <message><source>Music player</source><translation>音乐播放器</translation></message>
@@ -32,6 +32,9 @@
     <message><source>Restore the lyric area after closing it from the Dock.</source><translation>从任务栏关闭歌词区域后，可在此恢复显示。</translation></message>
     <message><source>Show in Dock</source><translation>在任务栏中显示</translation></message>
     <message><source>Dock display</source><translation>任务栏显示</translation></message>
+    <message><source>Audio visualizer</source><translation>音频可视化</translation></message>
+    <message><source>Show current player's audio visualizer</source><translation>显示当前播放器的音频可视化</translation></message>
+    <message><source>Audio is processed only in memory from the selected player's exact matching stream. It is never recorded, saved, or uploaded. If no exact match is available, system audio is not read.</source><translation>音频仅在内存中从所选播放器的精确匹配音频流中处理，不会被录制、保存或上传。如果无法精确匹配，则不读取系统音频。</translation></message>
     <message><source>Only song title, artist, album, and duration are sent to LRCLIB. Playback history and lyric text are not collected.</source><translation>仅向 LRCLIB 发送歌曲名、艺人、专辑和时长，不收集播放历史或歌词正文。</translation></message>
     <message><source>Clear cache</source><translation>清除缓存</translation></message>
     <message><source>Clear lyric cache</source><translation>清除歌词缓存</translation></message>
@@ -54,7 +57,7 @@
     <message><source>Select a running player</source><translation>选择正在运行的播放器</translation></message>
     <message><source>Select which running player the Dock should follow.</source><translation>选择任务栏要跟随的播放器。</translation></message>
     <message><source>No compatible running music player was found.</source><translation>未发现正在运行的兼容音乐播放器。</translation></message>
-    <message><source>Dock Lyrics is paused</source><translation>任务栏歌词已暂停</translation></message>
+    <message><source>Dock Lyrics is paused</source><translation>Deepin状态栏歌词已暂停</translation></message>
     <message><source>Waiting for a music player</source><translation>正在等待音乐播放器</translation></message>
     <message><source>Waiting for a song</source><translation>正在等待歌曲</translation></message>
     <message><source>Looking up lyrics...</source><translation>正在检索歌词...</translation></message>

@@ -45,11 +45,14 @@ void LrclibLyricsAdapter::search(const TrackIdentity &track)
         emit failed(QStringLiteral("rate-limited"));
         return;
     }
-    if (!track.searchable || track.durationMs <= 0) {
+    if (!track.searchable) {
         emit noLyrics();
         return;
     }
-    beginExact(track, generation);
+    if (track.durationMs > 0)
+        beginExact(track, generation);
+    else
+        beginCandidateSearch(track, generation);
 }
 
 void LrclibLyricsAdapter::searchCandidates(const TrackIdentity &track)
@@ -73,7 +76,7 @@ void LrclibLyricsAdapter::searchCandidates(const TrackIdentity &track)
 void LrclibLyricsAdapter::selectCandidate(const QString &providerId,
                                           const QString &candidateId)
 {
-    if (providerId != m_provider.id() || !m_candidateIds.contains(candidateId)) {
+    if (providerId.trimmed().isEmpty() || !m_candidateIds.contains(candidateId)) {
         emit failed(QStringLiteral("provider-failed"));
         return;
     }
@@ -104,7 +107,12 @@ void LrclibLyricsAdapter::beginExact(const TrackIdentity &track, int generation)
                 return;
             }
             const double score = scoreLyricCandidate(track, result.record);
-            const bool durationEligible = std::abs(track.durationMs - result.record.durationMs) <= 2000;
+            // 时长差已进入加权评分（1 - diff/10000）；10 秒内视为同曲不同版本，
+            // 超过 10 秒（durationScore 归零）视为异版本，需要用户确认。
+            // Duration difference is already folded into the weighted score
+            // (1 - diff/10000); within 10s treat as a version variant, beyond
+            // that (score zeroed) require user confirmation.
+            const bool durationEligible = std::abs(track.durationMs - result.record.durationMs) <= 10000;
             if (score >= 0.85 && durationEligible) {
                 if (!m_cache.store(m_trackKey, result.record, score, false,
                                    QDateTime::currentDateTimeUtc())) {
@@ -114,7 +122,26 @@ void LrclibLyricsAdapter::beginExact(const TrackIdentity &track, int generation)
                 emit lyricsReady(result.record.payload);
                 return;
             }
-            emit failed(QStringLiteral("provider-failed"));
+            // 0.60–0.84：精确记录身份不完全匹配，发布为候选等待用户确认，
+            // 而不是报 provider 错误（specs/04 约定）。
+            // 0.60-0.84: the exact record does not fully match; publish it as a
+            // candidate for the user instead of reporting a provider error.
+            if (score >= 0.60) {
+                LyricCandidate candidate;
+                candidate.providerId = QStringLiteral("lrclib");
+                candidate.candidateId = result.record.id;
+                candidate.title = result.record.trackName;
+                candidate.artist = result.record.artistName;
+                candidate.album = result.record.albumName;
+                candidate.durationMs = result.record.durationMs;
+                candidate.score = score;
+                m_candidateIds.insert(candidate.candidateId);
+                emit candidatesChanged({candidate});
+                return;
+            }
+            // <0.60：精确记录与曲目身份不符，退化为候选搜索。
+            // <0.60: the exact record is unrelated; fall back to candidate search.
+            beginCandidateSearch(track, generation);
             return;
         }
         if (result.kind == ProviderResultKind::NotFound) {
@@ -149,8 +176,12 @@ void LrclibLyricsAdapter::handleCandidates(const TrackIdentity &track,
         return;
     }
     const LyricCandidate &best = candidates.constFirst();
-    const bool durationEligible = std::abs(track.durationMs - best.durationMs) <= 2000;
-    if (best.score >= 0.85 && durationEligible) {
+    // 与 beginExact 一致：时长差在 10 秒内视为同曲不同版本，可自动采纳。
+    // Same rule as beginExact: within 10s treat as a version variant.
+    const bool durationEligible = track.durationMs <= 0
+        || std::abs(track.durationMs - best.durationMs) <= 10000;
+    const double automaticThreshold = track.durationMs > 0 ? 0.85 : 0.92;
+    if (best.score >= automaticThreshold && durationEligible) {
         fetchRecord(track, best.candidateId, best.score, false, generation);
         return;
     }

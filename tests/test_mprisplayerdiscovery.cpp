@@ -83,14 +83,18 @@ private:
 
 QVariantMap metadata(const QString &title,
                      const QStringList &artists = {QStringLiteral("Example Artist")},
-                     qlonglong durationUs = 213000000)
+                     qlonglong durationUs = 213000000,
+                     const QString &artUrl = {})
 {
-    return {
+    QVariantMap result = {
         {QStringLiteral("xesam:title"), title},
         {QStringLiteral("xesam:artist"), artists},
         {QStringLiteral("xesam:album"), QStringLiteral("Example Album")},
         {QStringLiteral("mpris:length"), durationUs},
     };
+    if (!artUrl.isEmpty())
+        result.insert(QStringLiteral("mpris:artUrl"), artUrl);
+    return result;
 }
 
 class FakeMprisService final
@@ -186,6 +190,7 @@ private slots:
     void pollsOnlyWhilePlaying();
     void debouncesTrackChanges();
     void handlesIncompleteMetadataAndExit();
+    void keepsLocalArtworkAndDropsRemoteArtwork();
     void resolvesAndClearsSelectedPlayerProcessId();
 };
 
@@ -325,6 +330,31 @@ void MprisPlayerDiscoveryTest::handlesIncompleteMetadataAndExit()
     QTRY_VERIFY(!discovery.selectedPlayerAvailable());
     QTRY_VERIFY(discovery.snapshot().busName.isEmpty());
     QVERIFY(availabilitySpy.count() >= 2);
+}
+
+void MprisPlayerDiscoveryTest::keepsLocalArtworkAndDropsRemoteArtwork()
+{
+    const QString busName = QStringLiteral("org.mpris.MediaPlayer2.artwork");
+    FakeMprisService player(busName, QStringLiteral("Artwork Player"));
+    player.object.metadata = metadata(QStringLiteral("Local Art"),
+                                      {QStringLiteral("Artist")}, 1000,
+                                      QStringLiteral("file:///tmp/cover.png"));
+    QVERIFY(player.start());
+
+    MprisPlayerDiscovery discovery(QDBusConnection::sessionBus());
+    discovery.setSelectedPlayer(busName);
+    discovery.start();
+    QTRY_COMPARE(discovery.snapshot().track.artUrl,
+                 QStringLiteral("file:///tmp/cover.png"));
+
+    player.changePlayerProperties({
+        {QStringLiteral("Metadata"), metadata(QStringLiteral("Remote Art"),
+                                               {QStringLiteral("Artist")}, 1000,
+                                               QStringLiteral("https://example.invalid/cover.png"))},
+    });
+    QTRY_COMPARE(discovery.snapshot().track.title, QStringLiteral("Remote Art"));
+    QVERIFY(discovery.snapshot().track.artUrl.isEmpty());
+    player.stop();
 }
 
 void MprisPlayerDiscoveryTest::resolvesAndClearsSelectedPlayerProcessId()

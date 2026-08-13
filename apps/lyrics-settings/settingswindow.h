@@ -76,5 +76,10 @@ private:
     QPushButton *m_showDockButton = nullptr;
     QPushButton *m_clearCacheButton = nullptr;
     QString m_lastStateErrorCode;
+    // 上一次渲染的播放器列表与选中项；用于避免位置轮询触发的下拉框重建。
+    // Last rendered player list and selection; avoids combo rebuilds on
+    // position-polling state updates.
+    QVariantList m_lastPlayers;
+    QString m_lastSelectedPlayer;
     bool m_updatingUi = false;
 };

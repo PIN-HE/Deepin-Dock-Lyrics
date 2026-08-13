@@ -26,7 +26,7 @@ AppletItem {
 
     function statusText() {
         if (!viewModel.serviceAvailable)
-            return qsTr("Lyrics service is starting")
+            return qsTr("Lyrics service is not running")
         switch (viewModel.status) {
         case "Disabled":
             return qsTr("Dock lyrics are disabled")
@@ -63,14 +63,16 @@ AppletItem {
         anchors.centerIn: parent
         rotation: root.useColumnLayout ? (root.panelPosition === Dock.Right ? 90 : -90) : 0
         currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
-        secondaryText: viewModel.status === "LyricsReady" ? viewModel.secondaryText : ""
+        secondaryText: viewModel.status === "LyricsReady"
+                       ? (viewModel.translationText.length > 0
+                          ? viewModel.translationText : viewModel.secondaryText) : ""
         lineProgress: viewModel.status === "LyricsReady" ? viewModel.lineProgress : 0
         progressVisible: viewModel.status === "LyricsReady"
                          && viewModel.timingCapability === "line"
-        visualizerVisible: (viewModel.status === "LookingUpLyrics" || viewModel.status === "NoLyrics"
-                            || viewModel.status === "Error")
-                           && viewModel.visualizerAvailable
+        visualizerVisible: viewModel.audioVisualizerEnabled
+                           || viewModel.status !== "LyricsReady"
         visualizerLevels: viewModel.visualizerLevels
+        artUrl: viewModel.artUrl
 
         onActivated: root.openDetails()
         onHideRequested: viewModel.setSessionHidden(true)
@@ -85,11 +87,20 @@ AppletItem {
                 ? DockPanelPositioner.y : 0
         previousText: viewModel.previousText
         currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
-        nextText: viewModel.status === "LyricsReady" ? viewModel.secondaryText : ""
+        nextText: viewModel.status === "LyricsReady"
+                  ? (viewModel.translationText.length > 0
+                     ? viewModel.translationText : viewModel.secondaryText) : ""
         sourceText: viewModel.source === "lrclib" ? "LRCLIB" : ""
         timingText: viewModel.timingCapability === "line"
                     ? qsTr("Line-synchronised lyrics")
                     : qsTr("Plain lyrics")
+        lyricsAvailable: viewModel.status === "LyricsReady"
+                         && viewModel.currentText.length > 0
+        visualizerVisible: viewModel.audioVisualizerEnabled || !lyricsAvailable
+        visualizerLevels: viewModel.visualizerLevels
+        positionMs: viewModel.positionMs
+        durationMs: viewModel.durationMs
+        artUrl: viewModel.artUrl
 
         onOpenSettingsRequested: {
             viewModel.openSettings()
