@@ -17,12 +17,21 @@ AppletItem {
                                                 Math.min(LyricsTokens.dockLyricWidthDefault,
                                                          LyricsTokens.dockLyricWidthMax))
     property int dockOrder: 24
-    property bool shouldVisible: !viewModel.sessionHidden
+    property bool shouldVisible: viewModel.serviceAvailable
+                                 && viewModel.enabled
+                                 && !viewModel.sessionHidden
 
-    implicitWidth: useColumnLayout ? dockSize : lyricExtent
-    implicitHeight: useColumnLayout ? lyricExtent : dockSize
+    // Dock keeps an item's implicit dimensions in its layout even after QML
+    // visibility changes, so release the slot explicitly when the service exits.
+    implicitWidth: shouldVisible ? (useColumnLayout ? dockSize : lyricExtent) : 0
+    implicitHeight: shouldVisible ? (useColumnLayout ? lyricExtent : dockSize) : 0
     enabled: shouldVisible
     visible: shouldVisible
+
+    onShouldVisibleChanged: {
+        if (!shouldVisible)
+            detailsPopup.close()
+    }
 
     function statusText() {
         if (!viewModel.serviceAvailable)

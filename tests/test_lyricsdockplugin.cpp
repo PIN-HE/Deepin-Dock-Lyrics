@@ -57,6 +57,8 @@ void LyricsDockPluginTest::packageMatchesDockContract()
     const QByteArray source = mainQml.readAll();
     QVERIFY(source.contains("property int dockOrder: 24"));
     QVERIFY(source.contains("property bool shouldVisible"));
+    QVERIFY(source.contains("viewModel.serviceAvailable"));
+    QVERIFY(source.contains("viewModel.enabled"));
     QVERIFY(source.contains("viewModel.setSessionHidden(true)"));
     QVERIFY(!source.contains("QDBusInterface"));
 

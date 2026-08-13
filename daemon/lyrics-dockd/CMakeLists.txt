@@ -103,7 +103,11 @@ target_link_libraries(lyrics-dockd
         Qt6::Sql
         Qt6::Gui
         Qt6::Widgets
-        Dtk6::Core
+    Dtk6::Core
+)
+
+install(TARGETS lyrics-dockd
+    RUNTIME DESTINATION lib/deepin-dock-lyrics
 )
 
 dtk_add_config_meta_files(

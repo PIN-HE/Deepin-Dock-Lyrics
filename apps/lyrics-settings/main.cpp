@@ -39,6 +39,7 @@ int main(int argc, char *argv[])
     // acknowledgements.
     auto *aboutDialog = new Dtk::Widget::DAboutDialog;
     aboutDialog->setProductName(QObject::tr("Deepin Dock Lyrics"));
+    aboutDialog->setProductIcon(QIcon(QStringLiteral(":/icons/deepin-lyrics-dock.png")));
     aboutDialog->setVersion(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION));
     aboutDialog->setDescription(QObject::tr(
         "Display synchronized lyrics in the Deepin Dock.\n"

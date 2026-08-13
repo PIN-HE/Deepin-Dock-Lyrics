@@ -1,0 +1,11 @@
+Package: deepin-dock-lyrics
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: PIN-HE <pin-he@users.noreply.github.com>
+Depends: dde-shell (>= 2.0), libdtk6core (>= 6.7), libdtk6gui (>= 6.7), libdtk6widget (>= 6.7), libopencc1.1, libqt6core6 (>= 6.8), libqt6dbus6 (>= 6.8), libqt6gui6 (>= 6.8), libqt6network6 (>= 6.8), libqt6qml6 (>= 6.8), libqt6quick6 (>= 6.8), libqt6sql6-sqlite (>= 6.8), libqt6widgets6 (>= 6.8)
+Recommends: pipewire
+Description: Synchronized lyrics for the Deepin Dock
+ A Deepin/UOS v25 Dock applet, background service, and settings application
+ for displaying synchronized lyrics from MPRIS music players.

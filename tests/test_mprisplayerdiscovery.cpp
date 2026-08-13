@@ -186,6 +186,7 @@ class MprisPlayerDiscoveryTest : public QObject
 
 private slots:
     void discoversAndSwitchesPlayers();
+    void mapsOpenOrpheusToNetEaseCloudMusic();
     void rediscoversRestartedPlayer();
     void pollsOnlyWhilePlaying();
     void debouncesTrackChanges();
@@ -227,6 +228,20 @@ void MprisPlayerDiscoveryTest::discoversAndSwitchesPlayers()
 
     first.stop();
     second.stop();
+}
+
+void MprisPlayerDiscoveryTest::mapsOpenOrpheusToNetEaseCloudMusic()
+{
+    FakeMprisService player(QStringLiteral("org.mpris.MediaPlayer2.openorpheus"),
+                            QStringLiteral("open-orpheus"));
+    QVERIFY(player.start());
+
+    MprisPlayerDiscovery discovery(QDBusConnection::sessionBus());
+    discovery.start();
+    QTRY_COMPARE(discovery.availablePlayers().size(), 1);
+    QCOMPARE(discovery.availablePlayers().constFirst().identity, QStringLiteral("网易云音乐"));
+
+    player.stop();
 }
 
 void MprisPlayerDiscoveryTest::rediscoversRestartedPlayer()

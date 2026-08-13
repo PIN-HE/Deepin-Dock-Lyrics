@@ -52,6 +52,13 @@ add_subdirectory(daemon/lyrics-dockd)
 add_subdirectory(apps/lyrics-settings)
 add_subdirectory(dock-applet)
 
+install(FILES systemd/lyrics-dockd.service
+    DESTINATION lib/systemd/user
+)
+install(FILES debian/org.deepin.LyricsDock1.service
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/dbus-1/services
+)
+
 if(DEEPIN_DOCK_LYRICS_BUILD_TESTS)
     add_subdirectory(tests)
 endif()
