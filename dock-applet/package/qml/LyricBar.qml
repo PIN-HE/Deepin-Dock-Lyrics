@@ -17,6 +17,10 @@ Rectangle {
     // Lyric scrolling reveals clipped content, so a host's decorative-motion preference must not disable it.
     property bool motionEnabled: true
     property bool progressSmoothingEnabled: true
+    // 卡拉 OK 布局：当前行居左（活动槽），下一行居右（非活动槽）。
+    // Karaoke layout: current line left-aligned (active slot), next line
+    // right-aligned (inactive slot).
+    property bool karaokeLayout: false
     property int progressAnimationDuration: 220
     property int marqueeStartDelay: 800
     property int lyricTransitionDuration: 280
@@ -211,7 +215,10 @@ Rectangle {
             color: LyricsTokens.dockLyricSecondaryColor
             elide: Text.ElideRight
             font.pixelSize: LyricsTokens.dockSecondaryFontSize
-            horizontalAlignment: Text.AlignLeft
+            // 卡拉 OK 布局下下一行居右，与居左的当前行形成左右呼应。
+            // In karaoke layout the next line sits right, mirroring the
+            // left-aligned current line.
+            horizontalAlignment: root.karaokeLayout ? Text.AlignRight : Text.AlignLeft
             text: root.displayedSecondaryText
             verticalAlignment: Text.AlignVCenter
             visible: text.length > 0

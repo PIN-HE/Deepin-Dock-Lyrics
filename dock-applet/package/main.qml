@@ -62,6 +62,9 @@ AppletItem {
         height: LyricsTokens.dockVisualHeight
         anchors.centerIn: parent
         rotation: root.useColumnLayout ? (root.panelPosition === Dock.Right ? 90 : -90) : 0
+        // 布局样式由设置项驱动（经典/卡拉 OK）。
+        // Layout style is driven by the settings (classic/karaoke).
+        karaokeLayout: viewModel.lyricLayout === "karaoke"
         currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
         secondaryText: viewModel.status === "LyricsReady"
                        ? (viewModel.translationText.length > 0
@@ -85,6 +88,9 @@ AppletItem {
                 ? DockPanelPositioner.x : 0
         popupY: root.panelRoot && DockPanelPositioner.y !== undefined
                 ? DockPanelPositioner.y : 0
+        // 与 Dock 歌词条一致的布局样式。
+        // Same layout style as the Dock lyric bar.
+        karaokeLayout: viewModel.lyricLayout === "karaoke"
         previousText: viewModel.previousText
         currentText: viewModel.status === "LyricsReady" ? viewModel.currentText : root.statusText()
         nextText: viewModel.status === "LyricsReady"

@@ -30,6 +30,7 @@ public slots:
     void SetPlayer(const QString &busName);
     void SetOffsetMs(int offsetMs);
     void SetAudioVisualizerEnabled(bool enabled);
+    void SetLyricLayout(const QString &layout);
     void SearchCandidates();
     void SelectCandidate(const QString &providerId, const QString &candidateId);
     void SetSessionHidden(bool hidden);

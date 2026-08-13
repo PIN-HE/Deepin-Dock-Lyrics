@@ -230,6 +230,29 @@ QWidget *SettingsWindow::createSettingsPage()
                          tr("Audio is processed only in memory from the selected player's exact matching stream. It is never recorded, saved, or uploaded. If no exact match is available, system audio is not read."),
                          m_audioVisualizerSwitch)));
 
+    // 歌词布局样式：经典（两行左对齐、当前行上滚）或卡拉 OK（当前行居左、下一行居右）。
+    // Lyric layout style: classic (left-aligned lines, current line on top) or
+    // karaoke (current line left, next line right).
+    auto *layoutContent = new QWidget(content);
+    auto *layoutRow = new QHBoxLayout(layoutContent);
+    layoutRow->setContentsMargins(0, 0, 0, 0);
+    layoutRow->setSpacing(m_tokens->space3());
+    m_layoutCombo = new DComboBox(layoutContent);
+    m_layoutCombo->setObjectName(QStringLiteral("lyricLayoutCombo"));
+    m_layoutCombo->setAccessibleName(tr("Lyric layout"));
+    m_layoutCombo->addItem(tr("Classic"), QStringLiteral("classic"));
+    m_layoutCombo->addItem(tr("Karaoke"), QStringLiteral("karaoke"));
+    connect(m_layoutCombo, &QComboBox::currentIndexChanged, this, [this](int index) {
+        if (!m_updatingUi && index >= 0)
+            m_viewModel.setLyricLayout(m_layoutCombo->itemData(index).toString());
+    });
+    layoutRow->addWidget(m_layoutCombo, 1);
+    layout->addWidget(createSection(
+        tr("Layout"),
+        createSettingRow(tr("Dock lyric layout"),
+                         tr("Karaoke places the current line left and the next line right."),
+                         layoutContent)));
+
     auto *candidateContent = new QWidget(content);
     auto *candidateLayout = new QVBoxLayout(candidateContent);
     candidateLayout->setContentsMargins(0, 0, 0, 0);
@@ -396,6 +419,10 @@ void SettingsWindow::refreshUi()
         const QSignalBlocker visualizerBlocker(m_audioVisualizerSwitch);
         m_audioVisualizerSwitch->setChecked(
             state.value(QStringLiteral("audioVisualizerEnabled")).toBool());
+        const QSignalBlocker layoutBlocker(m_layoutCombo);
+        const int layoutIndex = m_layoutCombo->findData(
+            state.value(QStringLiteral("lyricLayout"), QStringLiteral("classic")).toString());
+        m_layoutCombo->setCurrentIndex(layoutIndex >= 0 ? layoutIndex : 0);
         // 位置轮询会使 StateChanged 高频到达；播放器列表与选中项未变化时不重建
         // 下拉框，否则每次位置更新都会打断用户的选择操作（下拉框"抽搐"）。
         // Position polling fires StateChanged frequently; rebuild the player

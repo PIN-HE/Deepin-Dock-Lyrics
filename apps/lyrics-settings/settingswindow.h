@@ -70,6 +70,7 @@ private:
     QLabel *m_sourceValue = nullptr;
     Dtk::Widget::DSpinBox *m_offsetSpin = nullptr;
     Dtk::Widget::DSwitchButton *m_audioVisualizerSwitch = nullptr;
+    Dtk::Widget::DComboBox *m_layoutCombo = nullptr;
     QPushButton *m_searchButton = nullptr;
     QListWidget *m_candidateList = nullptr;
     QPushButton *m_selectCandidateButton = nullptr;

@@ -60,15 +60,18 @@ public:
     QString playerBusName() const override { return playerValue; }
     int offsetMs() const override { return offsetValue; }
     bool audioVisualizerEnabled() const override { return audioVisualizerEnabledValue; }
+    QString lyricLayout() const override { return lyricLayoutValue; }
     void setEnabled(bool value) override { enabledValue = value; }
     void setPlayerBusName(const QString &value) override { playerValue = value; }
     void setOffsetMs(int value) override { offsetValue = value; }
     void setAudioVisualizerEnabled(bool value) override { audioVisualizerEnabledValue = value; }
+    void setLyricLayout(const QString &value) override { lyricLayoutValue = value; }
 
     bool enabledValue = false;
     QString playerValue;
     int offsetValue = 0;
     bool audioVisualizerEnabledValue = false;
+    QString lyricLayoutValue = QStringLiteral("classic");
 };
 
 class FakeLyricsPort final : public LyricsPort
@@ -187,6 +190,7 @@ private slots:
     void keepsVisualizerDisabledByDefault();
     void publishesExternalFramesAndSkipsLookup();
     void restoresLookupAfterExternalFrameStops();
+    void validatesLyricLayoutValue();
 };
 
 void LyricsServiceControllerTest::followsCoreStateTransitions()
@@ -660,6 +664,35 @@ void LyricsServiceControllerTest::restoresLookupAfterExternalFrameStops()
     track.searchable = true;
     player.publishTrack(track);
     QCOMPARE(lyrics.lastTrack.title, QStringLiteral("New Song"));
+}
+
+void LyricsServiceControllerTest::validatesLyricLayoutValue()
+{
+    FakePlayerPort player;
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    FakeLyricsPort lyrics;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    LyricsServiceController controller(player, settings, logger, &lyrics, nullptr);
+    controller.start();
+
+    // 默认经典布局；无效值被拒绝且不写入设置。
+    // Classic by default; invalid values are rejected and never persisted.
+    QCOMPARE(controller.state().value(QStringLiteral("lyricLayout")).toString(),
+             QStringLiteral("classic"));
+
+    QString errorCode;
+    QVERIFY(!controller.setLyricLayout(QStringLiteral("sideways"), &errorCode));
+    QCOMPARE(errorCode, QStringLiteral("invalid-lyric-layout"));
+    QCOMPARE(controller.state().value(QStringLiteral("lyricLayout")).toString(),
+             QStringLiteral("classic"));
+    QCOMPARE(settings.lyricLayoutValue, QStringLiteral("classic"));
+
+    QVERIFY(controller.setLyricLayout(QStringLiteral("karaoke")));
+    QCOMPARE(controller.state().value(QStringLiteral("lyricLayout")).toString(),
+             QStringLiteral("karaoke"));
+    QCOMPARE(settings.lyricLayoutValue, QStringLiteral("karaoke"));
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

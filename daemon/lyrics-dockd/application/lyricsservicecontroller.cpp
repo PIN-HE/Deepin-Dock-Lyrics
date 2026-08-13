@@ -172,6 +172,7 @@ void LyricsServiceController::start()
     m_enabled = m_settings.enabled();
     m_offsetMs = std::clamp(m_settings.offsetMs(), -10000, 10000);
     m_audioVisualizerEnabled = m_settings.audioVisualizerEnabled();
+    m_lyricLayout = m_settings.lyricLayout();
     m_player.setSelectedPlayer(m_settings.playerBusName());
     m_player.start();
     m_players = m_player.availablePlayers();
@@ -199,6 +200,7 @@ QVariantMap LyricsServiceController::state() const
         {QStringLiteral("positionMs"), m_snapshot.positionMs},
         {QStringLiteral("offsetMs"), m_offsetMs},
         {QStringLiteral("audioVisualizerEnabled"), m_audioVisualizerEnabled},
+        {QStringLiteral("lyricLayout"), m_lyricLayout},
         {QStringLiteral("visualizerState"), visualizerStateName(m_visualizerState)},
         {QStringLiteral("visualizerAvailable"), m_visualizerState == VisualizerState::Active},
         {QStringLiteral("visualizerLevels"), visualizerLevels(m_visualizerFrame)},
@@ -280,6 +282,24 @@ bool LyricsServiceController::setAudioVisualizerEnabled(bool enabled, QString *)
     m_audioVisualizerEnabled = enabled;
     m_settings.setAudioVisualizerEnabled(enabled);
     refreshVisualizer();
+    publishState();
+    return true;
+}
+
+bool LyricsServiceController::setLyricLayout(const QString &layout, QString *errorCode)
+{
+    // 仅接受受支持的布局值，防止无效值进入 DConfig 与 QML 绑定。
+    // Accept only supported layout values so invalid input never reaches
+    // DConfig or the QML binding.
+    if (layout != QStringLiteral("classic") && layout != QStringLiteral("karaoke")) {
+        if (errorCode)
+            *errorCode = QStringLiteral("invalid-lyric-layout");
+        return false;
+    }
+    if (m_lyricLayout == layout)
+        return true;
+    m_lyricLayout = layout;
+    m_settings.setLyricLayout(layout);
     publishState();
     return true;
 }

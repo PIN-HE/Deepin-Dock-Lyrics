@@ -26,6 +26,7 @@ class LyricsDockViewModel final : public QObject
     Q_PROPERTY(QString artUrl READ artUrl NOTIFY stateChanged FINAL)
     Q_PROPERTY(bool visualizerAvailable READ visualizerAvailable NOTIFY stateChanged FINAL)
     Q_PROPERTY(bool audioVisualizerEnabled READ audioVisualizerEnabled NOTIFY stateChanged FINAL)
+    Q_PROPERTY(QString lyricLayout READ lyricLayout NOTIFY stateChanged FINAL)
     Q_PROPERTY(QVariantList visualizerLevels READ visualizerLevels NOTIFY stateChanged FINAL)
 
 public:
@@ -49,6 +50,7 @@ public:
     QString artUrl() const;
     bool visualizerAvailable() const;
     bool audioVisualizerEnabled() const;
+    QString lyricLayout() const;
     QVariantList visualizerLevels() const;
 
     Q_INVOKABLE void setSessionHidden(bool hidden);

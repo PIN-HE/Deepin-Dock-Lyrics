@@ -135,6 +135,13 @@ void LyricsDbusAdapter::SetAudioVisualizerEnabled(bool enabled)
         replyWithError(errorCode);
 }
 
+void LyricsDbusAdapter::SetLyricLayout(const QString &layout)
+{
+    QString errorCode;
+    if (!m_controller.setLyricLayout(layout, &errorCode))
+        replyWithError(errorCode);
+}
+
 void LyricsDbusAdapter::SearchCandidates()
 {
     QString errorCode;

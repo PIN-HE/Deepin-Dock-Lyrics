@@ -40,6 +40,13 @@ bool DConfigSettingsAdapter::audioVisualizerEnabled() const
                      : m_fallbackAudioVisualizerEnabled;
 }
 
+QString DConfigSettingsAdapter::lyricLayout() const
+{
+    return isValid() ? m_config->value(QStringLiteral("lyricLayout"),
+                                       QStringLiteral("classic")).toString()
+                     : m_fallbackLyricLayout;
+}
+
 void DConfigSettingsAdapter::setEnabled(bool enabled)
 {
     m_fallbackEnabled = enabled;
@@ -66,6 +73,13 @@ void DConfigSettingsAdapter::setAudioVisualizerEnabled(bool enabled)
     m_fallbackAudioVisualizerEnabled = enabled;
     if (isValid())
         m_config->setValue(QStringLiteral("audioVisualizerEnabled"), enabled);
+}
+
+void DConfigSettingsAdapter::setLyricLayout(const QString &layout)
+{
+    m_fallbackLyricLayout = layout;
+    if (isValid())
+        m_config->setValue(QStringLiteral("lyricLayout"), layout);
 }
 
 bool DConfigSettingsAdapter::isValid() const

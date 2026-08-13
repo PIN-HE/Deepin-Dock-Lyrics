@@ -166,6 +166,11 @@ bool LyricsDockViewModel::audioVisualizerEnabled() const
     return m_state.value(QStringLiteral("audioVisualizerEnabled")).toBool();
 }
 
+QString LyricsDockViewModel::lyricLayout() const
+{
+    return m_state.value(QStringLiteral("lyricLayout"), QStringLiteral("classic")).toString();
+}
+
 QVariantList LyricsDockViewModel::visualizerLevels() const
 {
     return dbusVariantList(m_state.value(QStringLiteral("visualizerLevels")));

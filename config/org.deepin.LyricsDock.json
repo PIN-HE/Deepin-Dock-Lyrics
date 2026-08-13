@@ -1,50 +1,61 @@
 {
-  "magic": "dsg.config.meta",
-  "version": "1.0",
-  "contents": {
-    "enabled": {
-      "value": false,
-      "serial": 0,
-      "flags": [],
-      "name": "Enable lyrics",
-      "name[zh_CN]": "启用歌词",
-      "description": "Whether the lyric service is enabled.",
-      "description[zh_CN]": "是否启用歌词服务。",
-      "permissions": "readwrite",
-      "visibility": "private"
-    },
-    "playerBusName": {
-      "value": "",
-      "serial": 0,
-      "flags": [],
-      "name": "Selected MPRIS player",
-      "name[zh_CN]": "选中的 MPRIS 播放器",
-      "description": "Exact MPRIS bus name selected by the user.",
-      "description[zh_CN]": "用户选中的精确 MPRIS 总线名称。",
-      "permissions": "readwrite",
-      "visibility": "private"
-    },
-    "offsetMs": {
-      "value": 0,
-      "serial": 0,
-      "flags": [],
-      "name": "Lyric timing offset",
-      "name[zh_CN]": "歌词时间偏移",
-      "description": "Lyric timing offset in milliseconds.",
-      "description[zh_CN]": "以毫秒表示的歌词时间偏移。",
-      "permissions": "readwrite",
-      "visibility": "private"
-    },
-    "audioVisualizerEnabled": {
-      "value": false,
-      "serial": 0,
-      "flags": [],
-      "name": "Show current player's audio visualizer",
-      "name[zh_CN]": "显示当前播放器的音频可视化",
-      "description": "Process only the selected MPRIS player's matching audio stream in memory.",
-      "description[zh_CN]": "仅在内存中处理与所选 MPRIS 播放器精确匹配的音频流。",
-      "permissions": "readwrite",
-      "visibility": "private"
+    "magic": "dsg.config.meta",
+    "version": "1.0",
+    "contents": {
+        "enabled": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Enable lyrics",
+            "name[zh_CN]": "启用歌词",
+            "description": "Whether the lyric service is enabled.",
+            "description[zh_CN]": "是否启用歌词服务。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "playerBusName": {
+            "value": "",
+            "serial": 0,
+            "flags": [],
+            "name": "Selected MPRIS player",
+            "name[zh_CN]": "选中的 MPRIS 播放器",
+            "description": "Exact MPRIS bus name selected by the user.",
+            "description[zh_CN]": "用户选中的精确 MPRIS 总线名称。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "offsetMs": {
+            "value": 0,
+            "serial": 0,
+            "flags": [],
+            "name": "Lyric timing offset",
+            "name[zh_CN]": "歌词时间偏移",
+            "description": "Lyric timing offset in milliseconds.",
+            "description[zh_CN]": "以毫秒表示的歌词时间偏移。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "audioVisualizerEnabled": {
+            "value": false,
+            "serial": 0,
+            "flags": [],
+            "name": "Show current player's audio visualizer",
+            "name[zh_CN]": "显示当前播放器的音频可视化",
+            "description": "Process only the selected MPRIS player's matching audio stream in memory.",
+            "description[zh_CN]": "仅在内存中处理与所选 MPRIS 播放器精确匹配的音频流。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        },
+        "lyricLayout": {
+            "value": "classic",
+            "serial": 0,
+            "flags": [],
+            "name": "Lyric layout style",
+            "name[zh_CN]": "歌词布局样式",
+            "description": "classic or karaoke layout for the Dock lyric bar.",
+            "description[zh_CN]": "Dock 歌词条布局：经典或卡拉 OK。",
+            "permissions": "readwrite",
+            "visibility": "private"
+        }
     }
-  }
 }

@@ -116,6 +116,11 @@ void SettingsViewModel::setAudioVisualizerEnabled(bool enabled)
              QStringLiteral("audio-visualizer"));
 }
 
+void SettingsViewModel::setLyricLayout(const QString &layout)
+{
+    callVoid(QStringLiteral("SetLyricLayout"), {layout}, QStringLiteral("lyric-layout"));
+}
+
 void SettingsViewModel::searchCandidates()
 {
     callVoid(QStringLiteral("SearchCandidates"), {}, QStringLiteral("search"));

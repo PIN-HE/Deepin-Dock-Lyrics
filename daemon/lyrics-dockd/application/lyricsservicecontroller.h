@@ -59,6 +59,7 @@ public:
     bool setPlayer(const QString &busName, QString *errorCode = nullptr);
     bool setOffsetMs(int offsetMs, QString *errorCode = nullptr);
     bool setAudioVisualizerEnabled(bool enabled, QString *errorCode = nullptr);
+    bool setLyricLayout(const QString &layout, QString *errorCode = nullptr);
     bool searchCandidates(QString *errorCode = nullptr);
     bool selectCandidate(const QString &providerId,
                          const QString &candidateId,
@@ -128,6 +129,7 @@ private:
     bool m_enabled = false;
     bool m_sessionHidden = false;
     bool m_audioVisualizerEnabled = false;
+    QString m_lyricLayout = QStringLiteral("classic");
     QElapsedTimer m_visualizerFrameTimer;
     bool m_trackStable = false;
     bool m_started = false;

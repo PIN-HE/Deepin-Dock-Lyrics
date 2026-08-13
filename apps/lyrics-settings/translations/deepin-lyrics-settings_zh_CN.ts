@@ -35,6 +35,11 @@
     <message><source>Audio visualizer</source><translation>音频可视化</translation></message>
     <message><source>Show current player's audio visualizer</source><translation>显示当前播放器的音频可视化</translation></message>
     <message><source>Audio is processed only in memory from the selected player's exact matching stream. It is never recorded, saved, or uploaded. If no exact match is available, system audio is not read.</source><translation>音频仅在内存中从所选播放器的精确匹配音频流中处理，不会被录制、保存或上传。如果无法精确匹配，则不读取系统音频。</translation></message>
+    <message><source>Layout</source><translation>布局</translation></message>
+    <message><source>Dock lyric layout</source><translation>Dock 歌词布局</translation></message>
+    <message><source>Karaoke places the current line left and the next line right.</source><translation>卡拉 OK 布局下当前行居左、下一行居右。</translation></message>
+    <message><source>Classic</source><translation>经典</translation></message>
+    <message><source>Karaoke</source><translation>卡拉 OK</translation></message>
     <message><source>Only song title, artist, album, and duration are sent to LRCLIB. Playback history and lyric text are not collected.</source><translation>仅向 LRCLIB 发送歌曲名、艺人、专辑和时长，不收集播放历史或歌词正文。</translation></message>
     <message><source>Clear cache</source><translation>清除缓存</translation></message>
     <message><source>Clear lyric cache</source><translation>清除歌词缓存</translation></message>

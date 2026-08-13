@@ -13,6 +13,9 @@ PanelPopup {
     property string nextText: ""
     property string sourceText: ""
     property string timingText: ""
+    // 卡拉 OK 布局：当前行居左、下一行居右；经典布局下两行居中。
+    // Karaoke layout: current line left, next line right; classic centers both.
+    property bool karaokeLayout: false
     property bool lyricsAvailable: false
     property bool visualizerVisible: false
     property var visualizerLevels: []
@@ -147,7 +150,9 @@ PanelPopup {
                             color: LyricsTokens.textPrimary
                             font.pixelSize: LyricsTokens.bodyFontSize
                             font.weight: Font.Medium
-                            horizontalAlignment: Text.AlignHCenter
+                            // 卡拉 OK 下当前行居左，经典布局居中。
+                            // Current line aligns left in karaoke, centered in classic.
+                            horizontalAlignment: root.karaokeLayout ? Text.AlignLeft : Text.AlignHCenter
                             maximumLineCount: 3
                             text: root.displayedCurrentText
                             verticalAlignment: Text.AlignVCenter
@@ -164,7 +169,9 @@ PanelPopup {
                         height: 28
                         color: LyricsTokens.textSecondary
                         font.pixelSize: LyricsTokens.dockSecondaryFontSize
-                        horizontalAlignment: Text.AlignHCenter
+                        // 卡拉 OK 下下一行居右，经典布局居中。
+                        // Next line aligns right in karaoke, centered in classic.
+                        horizontalAlignment: root.karaokeLayout ? Text.AlignRight : Text.AlignHCenter
                         elide: Text.ElideRight
                         text: root.nextText
                         verticalAlignment: Text.AlignVCenter
