@@ -47,7 +47,7 @@ private:
     QUrl m_baseUrl = QUrl(QStringLiteral("https://lrclib.net"));
     QByteArray m_userAgent = QByteArrayLiteral(
         "DeepinDockLyrics/" DEEPIN_DOCK_LYRICS_VERSION
-        " (https://github.com/ojijibo/deepin-dock-lyrics)");
+        " (https://github.com/PIN-HE/Deepin-Dock-Lyrics)");
     QQueue<PendingRequest> m_queue;
     QElapsedTimer m_lastDispatch;
     QTimer m_queueTimer;

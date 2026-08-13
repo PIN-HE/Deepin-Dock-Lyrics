@@ -3,6 +3,8 @@
 `deepin-dock-lyrics` is a MIT-licensed lyric display tool for deepin/UOS v25.
 It follows a user-selected, native Linux MPRIS music player and renders line-synchronised lyrics in the right side of the Dock. It does not play music or manage a music library.
 
+Source repository: <https://github.com/PIN-HE/Deepin-Dock-Lyrics>
+
 ## V1 source archive
 
 `v1.0.0` archives the completed S00-S07 functional source baseline: MPRIS discovery, the daemon and D-Bus contract, LRCLIB lookup and cache, line-synchronised rendering, the Dock applet, and the DTK6 settings application. See [CHANGELOG.md](CHANGELOG.md) for the bilingual release notes.
@@ -78,3 +80,10 @@ telemetry uploader and does not transmit these local logs.
 ## Code comments
 
 New non-obvious code comments use concise Chinese and English pairs. Comments explain constraints or decisions that code cannot express directly; UI strings continue to use Qt translation APIs.
+
+## Acknowledgements
+
+- **端闼乐部（Ter-Music）**：终端音乐播放器，提供 `org.yxzl.ter_music.Lyrics` 会话 D-Bus 歌词接口，本项目的"外部帧源"（S10）直接消费其 A/B 双缓冲歌词帧。感谢开发者 **燕戏竹林** 及其开源仓库：
+  <https://github.com/HuanSoft-Open-Source-Community/ter-music>
+- **LRCLIB**：开放歌词社区库，本项目默认在线歌词源：<https://lrclib.net>
+- **TaskbarLyrics**：Windows 任务栏歌词工具，其多源编排与位置外推设计为本项目提供了参考：<https://github.com/ANYNC/TaskbarLyrics>

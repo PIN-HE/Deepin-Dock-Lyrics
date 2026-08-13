@@ -1,6 +1,6 @@
 [Unit]
 Description=Deepin Dock Lyrics background service
-Documentation=https://github.com/ojijibo/deepin-dock-lyrics
+Documentation=https://github.com/PIN-HE/Deepin-Dock-Lyrics
 PartOf=graphical-session.target
 After=graphical-session.target
 
