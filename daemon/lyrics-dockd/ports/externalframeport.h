@@ -16,6 +16,11 @@ struct ExternalLyricFrame {
     TimingCapability timing = TimingCapability::None;
     quint64 revision = 0;
     QString trackId;
+    // 行时间轴（毫秒）：用于由外部源行级帧推算行内进度染色；无时间戳时为 -1。
+    // Line timeline (ms): used to derive intra-line progress from external
+    // line-level frames; -1 when the source has no timestamps.
+    qint64 currentLineStartMs = -1;
+    qint64 nextLineStartMs = -1;
 };
 
 // 外部帧源抽象端口。实现方负责：订阅/拉取外部歌词、判定当前选中播放器

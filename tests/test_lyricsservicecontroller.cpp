@@ -190,6 +190,7 @@ private slots:
     void keepsVisualizerDisabledByDefault();
     void publishesExternalFramesAndSkipsLookup();
     void restoresLookupAfterExternalFrameStops();
+    void derivesExternalLineProgressFromPosition();
     void validatesLyricLayoutValue();
 };
 
@@ -693,6 +694,51 @@ void LyricsServiceControllerTest::validatesLyricLayoutValue()
     QCOMPARE(controller.state().value(QStringLiteral("lyricLayout")).toString(),
              QStringLiteral("karaoke"));
     QCOMPARE(settings.lyricLayoutValue, QStringLiteral("karaoke"));
+}
+
+void LyricsServiceControllerTest::derivesExternalLineProgressFromPosition()
+{
+    FakePlayerPort player;
+    player.selected = QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    player.selectedAvailable = true;
+    player.currentSnapshot.playbackStatus = PlaybackStatus::Playing;
+    player.currentSnapshot.positionMs = 4000;
+    player.currentSnapshot.track.searchable = true;
+    MemorySettingsPort settings;
+    settings.enabledValue = true;
+    settings.playerValue = QStringLiteral("org.mpris.MediaPlayer2.ter_music");
+    FakeLyricsPort lyrics;
+    FakeExternalFramePort external;
+    NullLogSink sink;
+    LogEngine logger(sink);
+    LyricsServiceController controller(player, settings, logger, &lyrics, nullptr);
+    controller.setExternalFramePort(&external);
+    QSignalSpy frameSpy(&controller, &LyricsServiceController::frameChanged);
+    controller.start();
+
+    // 外部帧只带行时间轴；染色进度由播放位置推算。
+    // External frames carry only the line timeline; highlight progress is
+    // derived from the playback position.
+    ExternalLyricFrame frame;
+    frame.currentText = QStringLiteral("Line A");
+    frame.secondaryText = QStringLiteral("Line B");
+    frame.lineIndex = 0;
+    frame.timing = TimingCapability::Line;
+    frame.currentLineStartMs = 2000;
+    frame.nextLineStartMs = 6000;
+    frame.revision = 1;
+    external.publishFrame(frame);
+    QCOMPARE(frameSpy.count(), 1);
+    QCOMPARE(frameSpy.constFirst().constFirst().toMap()
+                 .value(QStringLiteral("lineProgress")).toDouble(), 0.5);
+
+    // 位置推进后轮询路径刷新染色。
+    // Position advances refresh the highlight through the polling path.
+    player.currentSnapshot.positionMs = 5000;
+    player.publishRawTrack(player.currentSnapshot.track);
+    QTRY_VERIFY(frameSpy.count() >= 2);
+    QCOMPARE(frameSpy.constLast().constFirst().toMap()
+                 .value(QStringLiteral("lineProgress")).toDouble(), 0.75);
 }
 
 QTEST_MAIN(LyricsServiceControllerTest)

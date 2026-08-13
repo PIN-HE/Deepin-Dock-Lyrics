@@ -573,11 +573,16 @@ void LyricsServiceController::publishState()
 
 void LyricsServiceController::publishFrame()
 {
-    // 外部帧源激活期间，帧完全由外部事件驱动，轮询路径不参与。
-    // While the external frame source is active, frames are event-driven;
-    // the polling path stays out of the way.
-    if (m_externalFrameActive)
+    // 外部帧源激活期间：行文本由事件驱动，但行内进度由位置轮询推算
+    //（外部源只提供行时间轴，不提供进度）。
+    // While the external frame source is active: line text is event-driven,
+    // but intra-line progress is derived from the position polling path
+    // (external sources provide the line timeline, not the progress).
+    if (m_externalFrameActive) {
+        if (m_externalLyricFrame.nextLineStartMs > m_externalLyricFrame.currentLineStartMs)
+            publishExternalFrame();
         return;
+    }
     if (m_parsedLyrics.timing == TimingCapability::None)
         return;
     const QVariantMap nextFrame = frameMap(
@@ -713,9 +718,16 @@ void LyricsServiceController::publishExternalFrame()
     frame.secondaryText = m_externalLyricFrame.secondaryText;
     frame.lineIndex = m_externalLyricFrame.lineIndex;
     frame.timing = m_externalLyricFrame.timing;
-    // 外部帧不携带行内进度：保持 0，UI 对 Plain/Line 都按整行显示。
-    // External frames carry no intra-line progress; keep 0.
+    // 外部源只提供行时间轴；行内进度由播放位置与行起止时间推算，供染色使用。
+    // External sources provide only the line timeline; intra-line progress is
+    // derived from the playback position and the line bounds for highlighting.
     frame.lineProgress = 0.0;
+    if (m_externalLyricFrame.nextLineStartMs > m_externalLyricFrame.currentLineStartMs) {
+        frame.lineProgress = std::clamp(
+            static_cast<double>(m_snapshot.positionMs - m_externalLyricFrame.currentLineStartMs)
+                / (m_externalLyricFrame.nextLineStartMs - m_externalLyricFrame.currentLineStartMs),
+            0.0, 1.0);
+    }
 
     const QVariantMap nextFrame = frameMap(frame, QStringLiteral("ter-music"));
     if (nextFrame == m_lastPublishedFrame)

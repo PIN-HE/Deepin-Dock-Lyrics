@@ -24,6 +24,7 @@ constexpr auto keyActiveLine = "active_line";
 constexpr auto keyLineA = "line_a";
 constexpr auto keyLineB = "line_b";
 constexpr auto keyIndex = "index";
+constexpr auto keyTimestamp = "timestamp";
 constexpr auto keyText = "text";
 constexpr auto keyTrackId = "track_id";
 constexpr auto keyHasLyrics = "has_lyrics";
@@ -180,6 +181,13 @@ void TerMusicFrameSource::parseSnapshot(const QJsonObject &object)
     frame.lineIndex = hasTimestamps ? slotIndex(active) : -1;
     frame.revision = revision;
     frame.trackId = trackId;
+    // 行起始时间（秒）转毫秒；由 Controller 结合播放位置推算行内进度染色。
+    // Convert line start times (seconds) to ms; the controller derives
+    // intra-line progress from these plus the playback position.
+    if (hasTimestamps) {
+        frame.currentLineStartMs = qRound64(active.value(QLatin1String(keyTimestamp)).toDouble(-1.0) * 1000.0);
+        frame.nextLineStartMs = qRound64(next.value(QLatin1String(keyTimestamp)).toDouble(-1.0) * 1000.0);
+    }
     m_pending = frame;
 
     // 无歌词时帧文本为空，不发布（由 stopped 语义覆盖）。
