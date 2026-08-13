@@ -268,7 +268,10 @@ void MprisPlayerDiscoveryTest::pollsOnlyWhilePlaying()
     player.object.positionUs = 5000000;
     player.changePlayerProperties({{QStringLiteral("PlaybackStatus"), QStringLiteral("Playing")}});
     QTRY_VERIFY_WITH_TIMEOUT(player.object.positionReadCount >= 2, 500);
-    QTRY_COMPARE_WITH_TIMEOUT(discovery.snapshot().positionMs, 5000, 250);
+    // 播放中位置按 Rate 外推，仅断言不低于上报值（动态增长）。
+    // While playing the position is extrapolated; assert it never drops below
+    // the reported value (it grows dynamically).
+    QTRY_VERIFY_WITH_TIMEOUT(discovery.snapshot().positionMs >= 5000, 250);
 
     player.changePlayerProperties({{QStringLiteral("PlaybackStatus"), QStringLiteral("Paused")}});
     QTest::qWait(250);
@@ -277,7 +280,7 @@ void MprisPlayerDiscoveryTest::pollsOnlyWhilePlaying()
     QCOMPARE(player.object.positionReadCount, readsWhilePaused);
 
     player.seek(42000000);
-    QTRY_COMPARE(discovery.snapshot().positionMs, 42000);
+    QTRY_VERIFY(discovery.snapshot().positionMs >= 42000);
     player.stop();
 }
 

@@ -3,6 +3,7 @@
 #include <lyricscore/types.h>
 
 #include <QDBusConnection>
+#include <QElapsedTimer>
 #include <QHash>
 #include <QObject>
 #include <QTimer>
@@ -40,6 +41,7 @@ private slots:
                              const QStringList &invalidatedProperties);
     void onSeeked(qlonglong positionUs);
     void pollPosition();
+    void updateSnapshotPosition();
     void publishStableTrack();
 
 private:
@@ -68,6 +70,13 @@ private:
     bool m_selectedPlayerAvailable = false;
     qint64 m_selectedPlayerProcessId = 0;
     bool m_positionRequestPending = false;
+    // 位置外推基准：播放器 Position 上报粒度可能很粗（ter-music 约 1s 步进），
+    // 播放中按 Rate 从最近已知位置插值，保证行内进度平滑。
+    // Extrapolation base: coarse Position updates (ter-music ~1s steps) are
+    // interpolated by Rate while playing for smooth intra-line progress.
+    QElapsedTimer m_positionClock;
+    qint64 m_lastPositionUs = 0;
+    qint64 m_lastPositionClockMs = 0;
 };
 
 } // namespace deepin::lyrics

@@ -134,6 +134,7 @@ void MprisPlayerDiscovery::start()
     if (m_started)
         return;
     m_started = true;
+    m_positionClock.start();
 
     m_connection.connect(QStringLiteral("org.freedesktop.DBus"),
                          QStringLiteral("/org/freedesktop/DBus"),
@@ -262,8 +263,24 @@ void MprisPlayerDiscovery::onSeeked(qlonglong positionUs)
 
     // MPRIS 用 Seeked 通知主动跳转，暂停时也必须立即刷新位置。
     // MPRIS reports explicit seeks through Seeked, which must update even while paused.
-    m_snapshot.positionMs = std::max<qlonglong>(0, positionUs / 1000);
+    m_lastPositionUs = std::max<qlonglong>(0, positionUs);
+    m_lastPositionClockMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+    m_snapshot.positionMs = m_lastPositionUs / 1000;
     publishSnapshot();
+}
+
+void MprisPlayerDiscovery::updateSnapshotPosition()
+{
+    // 播放器 Position 上报粒度可能很粗（如 ter-music 约 1s 步进）；
+    // 播放中按 Rate 从最近已知位置外推，使行内进度平滑。
+    // Coarse Position updates (e.g. ter-music ~1s steps) are interpolated by
+    // Rate while playing for smooth intra-line progress.
+    if (m_snapshot.playbackStatus != PlaybackStatus::Playing || !m_positionClock.isValid())
+        return;
+    const qint64 elapsedMs = m_positionClock.elapsed() - m_lastPositionClockMs;
+    const qint64 extrapolatedUs = m_lastPositionUs
+        + qRound64(m_snapshot.playbackRate * elapsedMs * 1000.0);
+    m_snapshot.positionMs = std::max<qlonglong>(0, extrapolatedUs / 1000);
 }
 
 void MprisPlayerDiscovery::pollPosition()
@@ -296,7 +313,12 @@ void MprisPlayerDiscovery::pollPosition()
                 const qlonglong positionUs = reply.value().variant().toLongLong(&valid);
                 if (!valid)
                     return;
-                m_snapshot.positionMs = std::max<qlonglong>(0, positionUs / 1000);
+                // 以上报值重建外推基准，再按经过时间插值（见 updateSnapshotPosition）。
+                // Rebase extrapolation on the reported value, then interpolate
+                // by elapsed time (see updateSnapshotPosition).
+                m_lastPositionUs = std::max<qlonglong>(0, positionUs);
+                m_lastPositionClockMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+                updateSnapshotPosition();
                 publishSnapshot();
             });
 }
@@ -464,8 +486,16 @@ void MprisPlayerDiscovery::applyPlayerProperties(const QVariantMap &properties)
     }
 
     if (properties.contains(QStringLiteral("PlaybackStatus"))) {
+        const PlaybackStatus previousStatus = m_snapshot.playbackStatus;
         m_snapshot.playbackStatus = playbackStatus(
             unwrapped(properties.value(QStringLiteral("PlaybackStatus"))).toString());
+        // 恢复播放时以当前已知位置重建外推基准，避免暂停时长被计入。
+        // Rebase extrapolation on resume so paused time is never counted.
+        if (previousStatus != PlaybackStatus::Playing
+            && m_snapshot.playbackStatus == PlaybackStatus::Playing) {
+            m_lastPositionUs = std::max<qlonglong>(0, m_snapshot.positionMs * 1000);
+            m_lastPositionClockMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+        }
     }
     if (properties.contains(QStringLiteral("Rate"))) {
         bool valid = false;
@@ -476,7 +506,13 @@ void MprisPlayerDiscovery::applyPlayerProperties(const QVariantMap &properties)
         bool valid = false;
         const qlonglong positionUs = unwrapped(properties.value(QStringLiteral("Position")))
                                          .toLongLong(&valid);
-        m_snapshot.positionMs = valid ? std::max<qlonglong>(0, positionUs / 1000) : -1;
+        if (valid) {
+            m_lastPositionUs = std::max<qlonglong>(0, positionUs);
+            m_lastPositionClockMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+            updateSnapshotPosition();
+        } else {
+            m_snapshot.positionMs = -1;
+        }
     }
 
     const auto descriptor = m_players.value(m_selectedPlayer);
