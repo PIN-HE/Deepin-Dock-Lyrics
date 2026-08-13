@@ -7,6 +7,24 @@
 - Dock 状态、工具提示与设置应用根据系统语言自动切换简体中文或英文。
 - Switch Dock status text, tooltips, and the settings application between Simplified Chinese and English according to the system locale.
 
+## 1.0.1 - 2026-08-13
+
+### 中文
+
+- 首次发布完整 Debian 安装包，包含 Dock Applet、后台 daemon、DTK6 设置应用、D-Bus 激活与用户级 systemd 服务。
+- 修复 daemon 退出后 Dock 右侧歌词区域仍保留空白占位的问题。
+- 修复浅色主题下浮层文字与设置图标的可见性。
+- 更新已知 MPRIS 播放器名称，包括网易云音乐。
+- 增加构建环境中 `dde-shell` 运行时升级可能影响 Dock 主题同步的兼容性预警。
+
+### English
+
+- First complete Debian package release with the Dock applet, daemon, DTK6 settings application, D-Bus activation, and user systemd service.
+- Fix the Dock lyric slot not being released after the daemon exits.
+- Fix popup text and settings-icon visibility in light themes.
+- Update known MPRIS player names, including NetEase Cloud Music.
+- Document the development-environment warning that a dde-shell runtime upgrade can affect Dock theme synchronization.
+
 ## 1.0.0 - 2026-08-13
 
 ### 中文
