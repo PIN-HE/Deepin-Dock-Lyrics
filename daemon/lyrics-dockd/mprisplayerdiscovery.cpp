@@ -79,8 +79,10 @@ QString displayNameForPlayer(const QString &identity, const QString &busName)
     Q_UNUSED(busName);
     if (identity == QLatin1String("open-orpheus"))
         return QStringLiteral("网易云音乐（open-orpheus）");
+    // ter-music 的中文项目名是"端闱乐部"。
+    // ter-music's Chinese project name is 端闱乐部.
     if (identity == QLatin1String("ter-music") || identity == QLatin1String("ter_music"))
-        return QStringLiteral("Ter-Music（终端播放器）");
+        return QStringLiteral("端闱乐部");
     return identity;
 }
 
