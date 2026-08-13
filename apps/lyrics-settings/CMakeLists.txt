@@ -32,6 +32,7 @@ target_link_libraries(lyrics-settings-window
     PUBLIC
         Lyrics::SettingsViewModel
         Lyrics::Ui
+        Lyrics::Version
         Qt6::Core
         Qt6::DBus
         Qt6::Widgets
