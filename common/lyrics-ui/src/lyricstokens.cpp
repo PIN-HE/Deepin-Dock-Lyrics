@@ -214,6 +214,15 @@ QColor LyricsTokens::dockLyricProgressColor() const
     return accent();
 }
 
+QColor LyricsTokens::dockLyricVisualizerColor() const
+{
+    const QColor primary = textPrimary();
+    // Soften the visualizer foreground while retaining contrast in both themes.
+    // 在深色主题中降低白色亮度，在浅色主题中使用主文字色保持对比度。
+    return primary.lightnessF() > 0.5 ? withOpacity(primary, 0.62)
+                                     : withOpacity(primary, 0.78);
+}
+
 QColor LyricsTokens::dockLyricTrackColor() const
 {
     return withOpacity(textPrimary(), 0.20);

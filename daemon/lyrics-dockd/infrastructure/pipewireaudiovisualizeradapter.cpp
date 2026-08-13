@@ -5,17 +5,20 @@
 #include "infrastructure/pipewirestreammatcher.h"
 
 #include <pipewire/pipewire.h>
+#include <pipewire/client.h>
 #include <spa/param/audio/raw-utils.h>
 
 #include <QMetaObject>
-#include <QDir>
 #include <QFile>
-#include <QTextStream>
+#include <QLoggingCategory>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <memory>
 
 namespace deepin::lyrics {
+
+Q_LOGGING_CATEGORY(visualizerLog, "org.deepin.lyricsdock.visualizer")
 
 namespace {
 
@@ -27,35 +30,60 @@ QString pipeWireProperty(const spa_dict *properties, const char *key)
 
 struct ProcessInfo {
     qint64 parentProcessId = 0;
-    uint userId = 0;
+    std::optional<uint> userId;
 };
 
 std::optional<ProcessInfo> processInfo(qint64 processId)
 {
+    QFile statFile(QStringLiteral("/proc/%1/stat").arg(processId));
+    if (statFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const QByteArray line = statFile.readLine().trimmed();
+        const int commandEnd = line.lastIndexOf(')');
+        if (commandEnd >= 0) {
+            const QList<QByteArray> fields = line.sliced(commandEnd + 1).simplified().split(' ');
+            bool valid = false;
+            if (fields.size() >= 2) {
+                ProcessInfo result;
+                result.parentProcessId = fields.at(1).toLongLong(&valid);
+                if (valid && result.parentProcessId >= 0)
+                    return result;
+            }
+        }
+    }
     QFile file(QStringLiteral("/proc/%1/status").arg(processId));
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         return std::nullopt;
+    }
 
     ProcessInfo result;
     bool parentFound = false;
-    bool userFound = false;
     while (!file.atEnd()) {
         const QByteArray line = file.readLine();
         if (line.startsWith("PPid:")) {
             result.parentProcessId = QString::fromLatin1(line.sliced(5)).trimmed().toLongLong();
             parentFound = result.parentProcessId >= 0;
         } else if (line.startsWith("Uid:")) {
-            result.userId = QString::fromLatin1(line.sliced(4)).trimmed()
-                                .section(QLatin1Char(' '), 0, 0).toUInt();
-            userFound = true;
+            const QStringList values = QString::fromLatin1(line.sliced(4)).trimmed().split(
+                QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+            bool valid = false;
+            if (!values.isEmpty())
+                result.userId = values.constFirst().toUInt(&valid);
+            if (!valid)
+                result.userId.reset();
         }
     }
-    return parentFound && userFound ? std::optional<ProcessInfo>(result) : std::nullopt;
+    return parentFound ? std::optional<ProcessInfo>(result) : std::nullopt;
 }
 
 bool isInterface(const char *type, const char *expected)
 {
-    return type && qstrcmp(type, expected) == 0;
+    if (!type || !expected)
+        return false;
+    const QByteArray actual(type);
+    const QByteArray wanted(expected);
+    const int separator = wanted.lastIndexOf(':');
+    const QByteArray shortName = separator >= 0 ? wanted.sliced(separator + 1) : wanted;
+    return actual == wanted || actual.endsWith(wanted) || actual.endsWith(shortName);
 }
 
 } // namespace
@@ -72,6 +100,15 @@ PipeWireAudioVisualizerAdapter::~PipeWireAudioVisualizerAdapter()
         pw_thread_loop_lock(m_loop);
     if (m_registryListener)
         spa_hook_remove(m_registryListener);
+    for (const auto &binding : std::as_const(m_clientBindings)) {
+        if (binding->listener)
+            spa_hook_remove(binding->listener);
+        delete binding->listener;
+        binding->listener = nullptr;
+        if (binding->client)
+            pw_proxy_destroy(reinterpret_cast<pw_proxy *>(binding->client));
+    }
+    m_clientBindings.clear();
     if (m_core)
         pw_core_disconnect(m_core);
     if (m_loop)
@@ -163,21 +200,58 @@ void PipeWireAudioVisualizerAdapter::onGlobal(void *data, quint32 id, quint32,
                                                const spa_dict *properties)
 {
     auto *self = static_cast<PipeWireAudioVisualizerAdapter *>(data);
-    QMutexLocker locker(&self->m_mutex);
     if (isInterface(type, PW_TYPE_INTERFACE_Client)) {
-        bool valid = false;
-        const qint64 processId = pipeWireProperty(properties, PW_KEY_APP_PROCESS_ID)
-                                     .toLongLong(&valid);
-        if (valid && processId > 0)
-            self->m_clients.append({id, processId});
+        auto binding = std::make_shared<ClientBinding>();
+        binding->owner = self;
+        binding->id = id;
+        binding->client = static_cast<pw_client *>(pw_registry_bind(
+            self->m_registry, id, PW_TYPE_INTERFACE_Client, PW_VERSION_CLIENT, 0));
+        if (binding->client) {
+            binding->listener = new spa_hook {};
+            static const pw_client_events events = [] {
+                pw_client_events value {};
+                value.version = PW_VERSION_CLIENT_EVENTS;
+                value.info = &PipeWireAudioVisualizerAdapter::onClientInfo;
+                return value;
+            }();
+            pw_client_add_listener(binding->client, binding->listener, &events, binding.get());
+            QMutexLocker locker(&self->m_mutex);
+            self->m_clientBindings.append(binding);
+        }
     } else if (isInterface(type, PW_TYPE_INTERFACE_Node)) {
         bool valid = false;
         const quint32 clientId = pipeWireProperty(properties, PW_KEY_CLIENT_ID).toUInt(&valid);
         const bool isOutput = pipeWireProperty(properties, PW_KEY_MEDIA_CLASS)
             == QStringLiteral("Stream/Output/Audio");
         const QString serial = pipeWireProperty(properties, PW_KEY_OBJECT_SERIAL);
-        if (valid && isOutput && !serial.isEmpty())
+        if (valid && isOutput && !serial.isEmpty()) {
+            QMutexLocker locker(&self->m_mutex);
             self->m_nodes.append({id, clientId, serial, true});
+        }
+    }
+    QMetaObject::invokeMethod(self, &PipeWireAudioVisualizerAdapter::reevaluateTarget,
+                              Qt::QueuedConnection);
+}
+
+void PipeWireAudioVisualizerAdapter::onClientInfo(void *data, const pw_client_info *info)
+{
+    auto *binding = static_cast<ClientBinding *>(data);
+    if (!binding || !binding->owner || !info)
+        return;
+    auto *self = binding->owner;
+    bool valid = false;
+    const qint64 processId = pipeWireProperty(info->props, PW_KEY_APP_PROCESS_ID)
+                                 .toLongLong(&valid);
+    if (!valid || processId <= 0)
+        return;
+    {
+        QMutexLocker locker(&self->m_mutex);
+        auto it = std::find_if(self->m_clients.begin(), self->m_clients.end(),
+                               [id = info->id](const auto &client) { return client.id == id; });
+        if (it == self->m_clients.end())
+            self->m_clients.append({info->id, processId});
+        else
+            it->processId = processId;
     }
     QMetaObject::invokeMethod(self, &PipeWireAudioVisualizerAdapter::reevaluateTarget,
                               Qt::QueuedConnection);
@@ -194,9 +268,26 @@ void PipeWireAudioVisualizerAdapter::onGlobalRemove(void *data, quint32 id)
         self->m_nodes.erase(std::remove_if(self->m_nodes.begin(), self->m_nodes.end(),
                                            [id](const auto &node) { return node.id == id; }),
                             self->m_nodes.end());
+        self->removeClientBinding(id);
     }
     QMetaObject::invokeMethod(self, &PipeWireAudioVisualizerAdapter::reevaluateTarget,
                               Qt::QueuedConnection);
+}
+
+void PipeWireAudioVisualizerAdapter::removeClientBinding(quint32 id)
+{
+    const auto it = std::find_if(m_clientBindings.begin(), m_clientBindings.end(),
+                                 [id](const auto &binding) { return binding->id == id; });
+    if (it == m_clientBindings.end())
+        return;
+    const auto binding = *it;
+    if (binding->listener)
+        spa_hook_remove(binding->listener);
+    delete binding->listener;
+    binding->listener = nullptr;
+    if (binding->client)
+        pw_proxy_destroy(reinterpret_cast<pw_proxy *>(binding->client));
+    m_clientBindings.erase(it);
 }
 
 void PipeWireAudioVisualizerAdapter::reevaluateTarget()
@@ -219,7 +310,7 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
         clients = m_clients;
         nodes = m_nodes;
     }
-    const QSet<qint64> processIds = mprisProcessTree();
+    const QSet<qint64> processIds = mprisOwnedProcessIds(clients);
     const auto target = selectMprisOwnedPipeWireAudioStream(clients, nodes, processIds);
     if (!target) {
         destroyCapture();
@@ -264,6 +355,7 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
         && pw_stream_connect(m_stream, PW_DIRECTION_INPUT, PW_ID_ANY, flags, params, 1) >= 0;
     pw_thread_loop_unlock(m_loop);
     if (!connected) {
+        qCWarning(visualizerLog) << "Failed to connect exact PipeWire capture stream";
         destroyCapture();
         setState(VisualizerState::Unavailable, StreamMatchConfidence::None);
         return;
@@ -272,7 +364,8 @@ void PipeWireAudioVisualizerAdapter::reevaluateTarget()
     setState(VisualizerState::Active, confidence);
 }
 
-QSet<qint64> PipeWireAudioVisualizerAdapter::mprisProcessTree() const
+QSet<qint64> PipeWireAudioVisualizerAdapter::mprisOwnedProcessIds(
+    const QList<PipeWireClientInfo> &clients) const
 {
     QSet<qint64> processIds;
     const auto root = processInfo(m_processId);
@@ -280,25 +373,22 @@ QSet<qint64> PipeWireAudioVisualizerAdapter::mprisProcessTree() const
         return processIds;
     processIds.insert(m_processId);
 
-    QList<qint64> pending{m_processId};
-    while (!pending.isEmpty()) {
-        const qint64 parentProcessId = pending.takeFirst();
-        const QDir proc(QStringLiteral("/proc"));
-        const QStringList entries = proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-        for (const QString &entry : entries) {
-            bool valid = false;
-            const qint64 processId = entry.toLongLong(&valid);
-            if (!valid || processIds.contains(processId))
-                continue;
+    for (const PipeWireClientInfo &client : clients) {
+        qint64 processId = client.processId;
+        for (int depth = 0; depth < 64 && processId > 0; ++depth) {
+            if (processId == m_processId) {
+                processIds.insert(client.processId);
+                break;
+            }
             const auto info = processInfo(processId);
-            if (!info || info->userId != root->userId || info->parentProcessId != parentProcessId)
-                continue;
-            processIds.insert(processId);
-            pending.append(processId);
+            if (!info || (root->userId && info->userId && *root->userId != *info->userId)
+                || info->parentProcessId == processId)
+                break;
+            processId = info->parentProcessId;
         }
     }
-    // Electron exposes MPRIS from a browser process but audio from a child process.
-    // Electron 常由浏览器进程注册 MPRIS，而由子进程输出音频。
+    // Validate only already-discovered PipeWire client PIDs against the MPRIS ancestry chain.
+    // 仅验证已发现的 PipeWire 客户端 PID 是否回溯到 MPRIS 进程，绝不枚举或猜测其他应用。
     return processIds;
 }
 

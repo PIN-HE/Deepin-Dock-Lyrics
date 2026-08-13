@@ -1,0 +1,4 @@
+[D-BUS Service]
+Name=org.deepin.LyricsDock1
+Exec=/usr/lib/deepin-dock-lyrics/lyrics-dockd
+SystemdService=lyrics-dockd.service

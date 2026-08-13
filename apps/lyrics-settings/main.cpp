@@ -28,8 +28,8 @@ int main(int argc, char *argv[])
     if (productTranslator.load(QLocale::system(), QStringLiteral("deepin-lyrics-settings"),
                                QStringLiteral("_"), QStringLiteral(":/translations")))
         app.installTranslator(&productTranslator);
-    app.setProductName(QObject::tr("Dock Lyrics"));
-    app.setProductIcon(DIconTheme::findQIcon(QStringLiteral("music")));
+    app.setProductName(QObject::tr("Deepin Dock Lyrics"));
+    app.setProductIcon(QIcon(QStringLiteral(":/icons/deepin-lyrics-dock.png")));
     app.setApplicationDescription(QObject::tr("Display synchronized lyrics in the Deepin Dock."));
     app.setApplicationLicense(QStringLiteral("MIT"));
     Dtk::Core::DLogManager::registerConsoleAppender();

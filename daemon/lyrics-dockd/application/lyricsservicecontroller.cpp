@@ -68,6 +68,7 @@ QVariantList visualizerLevels(const VisualizerFrame &frame)
 QVariantMap frameMap(const LyricFrame &frame, const QString &source)
 {
     return {
+        {QStringLiteral("previousText"), frame.previousText},
         {QStringLiteral("currentText"), frame.currentText},
         {QStringLiteral("secondaryText"), frame.secondaryText},
         {QStringLiteral("translationText"), frame.translationText},
@@ -123,6 +124,17 @@ LyricsServiceController::LyricsServiceController(PlayerPort &player,
     }
 }
 
+void LyricsServiceController::setExternalFramePort(ExternalFramePort *externalFrame)
+{
+    m_externalFrame = externalFrame;
+    if (!m_externalFrame)
+        return;
+    connect(m_externalFrame, &ExternalFramePort::frameAvailable,
+            this, &LyricsServiceController::onExternalFrameAvailable);
+    connect(m_externalFrame, &ExternalFramePort::stopped,
+            this, &LyricsServiceController::onExternalFrameStopped);
+}
+
 LyricsServiceController::LyricsServiceController(PlayerPort &player,
                                                  SettingsPort &settings,
                                                  LogEngine &logger,
@@ -164,6 +176,7 @@ void LyricsServiceController::start()
     m_player.start();
     m_players = m_player.availablePlayers();
     m_snapshot = m_player.snapshot();
+    syncExternalFramePlayer();
     refreshStatus();
     refreshVisualizer();
     publishState();
@@ -181,7 +194,9 @@ QVariantMap LyricsServiceController::state() const
         {QStringLiteral("trackTitle"), track.title},
         {QStringLiteral("trackArtists"), track.artists},
         {QStringLiteral("trackAlbum"), track.album},
+        {QStringLiteral("trackArtUrl"), track.artUrl},
         {QStringLiteral("durationMs"), track.durationMs},
+        {QStringLiteral("positionMs"), m_snapshot.positionMs},
         {QStringLiteral("offsetMs"), m_offsetMs},
         {QStringLiteral("audioVisualizerEnabled"), m_audioVisualizerEnabled},
         {QStringLiteral("visualizerState"), visualizerStateName(m_visualizerState)},
@@ -287,7 +302,14 @@ bool LyricsServiceController::selectCandidate(const QString &providerId,
                                               const QString &candidateId,
                                               QString *errorCode)
 {
-    if (providerId != QStringLiteral("lrclib") || candidateId.trimmed().isEmpty()) {
+    const bool knownCandidate = std::any_of(
+        m_candidateMaps.cbegin(), m_candidateMaps.cend(), [&](const QVariant &value) {
+            const QVariantMap map = value.toMap();
+            return map.value(QStringLiteral("providerId")).toString() == providerId
+                && map.value(QStringLiteral("candidateId")).toString() == candidateId;
+        });
+    if (providerId.trimmed().isEmpty() || candidateId.trimmed().isEmpty()
+        || !knownCandidate) {
         if (errorCode)
             *errorCode = QStringLiteral("invalid-candidate");
         return false;
@@ -356,6 +378,7 @@ void LyricsServiceController::onSelectedPlayerAvailableChanged(bool)
         m_trackStable = false;
         clearFrame();
     }
+    syncExternalFramePlayer();
     refreshStatus();
     refreshVisualizer();
     publishState();
@@ -366,7 +389,12 @@ void LyricsServiceController::onTrackChanged(const TrackIdentity &track)
     clearFrame();
     m_snapshot.track = track;
     m_trackStable = true;
-    if (m_enabled && m_player.selectedPlayerAvailable() && track.searchable) {
+    // 选中 Ter-Music 等自带歌词的播放器时，由外部帧源直接供帧，跳过查询链。
+    // Players with built-in lyrics (e.g. Ter-Music) feed frames directly;
+    // skip the lookup chain while the external source is active.
+    const bool externalFeedsLyrics = m_externalFrame && m_externalFrame->active();
+    if (m_enabled && m_player.selectedPlayerAvailable() && track.searchable
+        && !externalFeedsLyrics) {
         setStatus(ServiceStatus::LookingUpLyrics);
         if (m_lyrics)
             m_lyrics->search(track);
@@ -391,6 +419,8 @@ void LyricsServiceController::onLyricsReady(const LyricPayload &payload)
             displayPayload.syncedLyrics = *converted;
         if (const auto converted = m_scriptConverter->toSimplified(displayPayload.plainLyrics))
             displayPayload.plainLyrics = *converted;
+        if (const auto converted = m_scriptConverter->toSimplified(displayPayload.translationLyrics))
+            displayPayload.translationLyrics = *converted;
     }
     m_parsedLyrics = parseLyrics(displayPayload);
     m_lyricsSource = payload.providerId;
@@ -427,6 +457,7 @@ void LyricsServiceController::onCandidatesChanged(const QList<LyricCandidate> &c
             {QStringLiteral("album"), candidate.album},
             {QStringLiteral("durationMs"), candidate.durationMs},
             {QStringLiteral("score"), candidate.score},
+            {QStringLiteral("sourceTrust"), candidate.sourceTrust},
         });
     }
     m_candidateMaps.clear();
@@ -478,6 +509,10 @@ void LyricsServiceController::refreshStatus()
 {
     if (!m_enabled)
         setStatus(ServiceStatus::Disabled);
+    else if (m_externalFrameActive && !m_externalLyricFrame.currentText.isEmpty())
+        // 外部帧源（Ter-Music 等）推送中：锁定歌词就绪状态。
+        // External frames are flowing: pin the ready state.
+        setStatus(ServiceStatus::LyricsReady);
     else if (m_player.selectedPlayer().isEmpty() || !m_player.selectedPlayerAvailable())
         setStatus(ServiceStatus::WaitingForPlayer);
     else if (!currentTrackSearchable())
@@ -518,6 +553,11 @@ void LyricsServiceController::publishState()
 
 void LyricsServiceController::publishFrame()
 {
+    // 外部帧源激活期间，帧完全由外部事件驱动，轮询路径不参与。
+    // While the external frame source is active, frames are event-driven;
+    // the polling path stays out of the way.
+    if (m_externalFrameActive)
+        return;
     if (m_parsedLyrics.timing == TimingCapability::None)
         return;
     const QVariantMap nextFrame = frameMap(
@@ -537,7 +577,10 @@ void LyricsServiceController::clearFrame()
         emit candidatesChanged({});
     m_parsedLyrics = {};
     m_lyricsSource.clear();
+    m_externalFrameActive = false;
+    m_externalLyricFrame = {};
     const QVariantMap emptyFrame{
+        {QStringLiteral("previousText"), QString()},
         {QStringLiteral("currentText"), QString()},
         {QStringLiteral("secondaryText"), QString()},
         {QStringLiteral("translationText"), QString()},
@@ -557,7 +600,7 @@ void LyricsServiceController::refreshVisualizer()
 {
     if (!m_visualizer)
         return;
-    if (!m_enabled || !m_audioVisualizerEnabled || !shouldVisualize()) {
+    if (!m_enabled || !shouldVisualize()) {
         m_visualizer->stop();
         clearVisualizerFrame();
         return;
@@ -575,8 +618,7 @@ bool LyricsServiceController::shouldVisualize() const
 {
     return m_player.selectedPlayerAvailable()
         && m_snapshot.playbackStatus == PlaybackStatus::Playing
-        && (m_status == ServiceStatus::LookingUpLyrics || m_status == ServiceStatus::NoLyrics
-            || m_status == ServiceStatus::Error);
+        && (m_audioVisualizerEnabled || m_status != ServiceStatus::LyricsReady);
 }
 
 bool LyricsServiceController::currentTrackSearchable() const
@@ -605,6 +647,61 @@ QString LyricsServiceController::statusName(ServiceStatus status)
         return QStringLiteral("Error");
     }
     return QStringLiteral("Error");
+}
+
+void LyricsServiceController::syncExternalFramePlayer()
+{
+    // 把当前选中播放器同步给外部帧源，由源决定启停（仅 Ter-Music 启用）。
+    // Forward the selected player to the external source, which enables
+    // itself only while Ter-Music is selected.
+    if (m_externalFrame)
+        m_externalFrame->setSelectedPlayer(m_player.selectedPlayer());
+}
+
+void LyricsServiceController::onExternalFrameAvailable(const ExternalLyricFrame &frame)
+{
+    if (!m_enabled || !m_player.selectedPlayerAvailable())
+        return;
+    // 新曲目的第一帧：外部源已按 track_id 重置内部状态，这里直接采用。
+    // The source resets its state on track_id changes; adopt the frame as-is.
+    m_externalLyricFrame = frame;
+    m_externalFrameActive = true;
+    setStatus(ServiceStatus::LyricsReady);
+    publishExternalFrame();
+    publishState();
+}
+
+void LyricsServiceController::onExternalFrameStopped()
+{
+    const bool wasActive = m_externalFrameActive;
+    m_externalFrameActive = false;
+    m_externalLyricFrame = {};
+    if (!wasActive)
+        return;
+    // 外部帧停止后回到常规状态机：若已有 LRCLIB 歌词则继续显示。
+    // Fall back to the regular state machine; keep showing LRCLIB lyrics if any.
+    refreshStatus();
+    publishState();
+    publishFrame();
+}
+
+void LyricsServiceController::publishExternalFrame()
+{
+    LyricFrame frame;
+    frame.track = m_snapshot.track;
+    frame.currentText = m_externalLyricFrame.currentText;
+    frame.secondaryText = m_externalLyricFrame.secondaryText;
+    frame.lineIndex = m_externalLyricFrame.lineIndex;
+    frame.timing = m_externalLyricFrame.timing;
+    // 外部帧不携带行内进度：保持 0，UI 对 Plain/Line 都按整行显示。
+    // External frames carry no intra-line progress; keep 0.
+    frame.lineProgress = 0.0;
+
+    const QVariantMap nextFrame = frameMap(frame, QStringLiteral("ter-music"));
+    if (nextFrame == m_lastPublishedFrame)
+        return;
+    m_lastPublishedFrame = nextFrame;
+    emit frameChanged(nextFrame);
 }
 
 } // namespace deepin::lyrics

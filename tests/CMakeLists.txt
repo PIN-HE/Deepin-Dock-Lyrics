@@ -87,6 +87,11 @@ set_tests_properties(lyrics-ui-test PROPERTIES
 )
 
 find_program(DBUS_RUN_SESSION_EXECUTABLE dbus-run-session REQUIRED)
+# 无 activation 的私有 session bus 包装：默认 dbus-run-session 仍会加载
+# session.conf 的 <servicedir>，测试的 method call 会激活系统 lyrics-dockd。
+# Private session bus without D-Bus activation: dbus-run-session keeps the
+# default <servicedir>, so tests could activate the real lyrics-dockd.
+set(DBUS_TEST_WRAPPER ${CMAKE_CURRENT_SOURCE_DIR}/dbus-test-wrapper.sh)
 
 add_executable(mpris-player-discovery-test
     test_mprisplayerdiscovery.cpp
@@ -102,7 +107,7 @@ target_link_libraries(mpris-player-discovery-test
 
 add_test(
     NAME mpris-player-discovery-test
-    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:mpris-player-discovery-test>
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:mpris-player-discovery-test>
 )
 set_tests_properties(mpris-player-discovery-test PROPERTIES TIMEOUT 20)
 
@@ -159,7 +164,7 @@ target_link_libraries(lyrics-dbus-adapter-test
 
 add_test(
     NAME lyrics-dbus-adapter-test
-    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:lyrics-dbus-adapter-test>
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:lyrics-dbus-adapter-test>
 )
 set_tests_properties(lyrics-dbus-adapter-test PROPERTIES TIMEOUT 20)
 
@@ -193,10 +198,55 @@ target_link_libraries(lrclib-lyrics-adapter-test
 add_test(NAME lrclib-lyrics-adapter-test COMMAND lrclib-lyrics-adapter-test)
 set_tests_properties(lrclib-lyrics-adapter-test PROPERTIES TIMEOUT 20)
 
+add_executable(multisource-lyric-provider-test
+    test_multisourcelyricprovider.cpp
+)
+
+target_link_libraries(multisource-lyric-provider-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME multisource-lyric-provider-test COMMAND multisource-lyric-provider-test)
+set_tests_properties(multisource-lyric-provider-test PROPERTIES TIMEOUT 20)
+
+add_executable(local-lyrics-provider-test
+    test_locallyricsprovider.cpp
+)
+
+target_link_libraries(local-lyrics-provider-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::Test
+)
+
+add_test(NAME local-lyrics-provider-test COMMAND local-lyrics-provider-test)
+set_tests_properties(local-lyrics-provider-test PROPERTIES TIMEOUT 20)
+
+add_executable(ter-music-frame-source-test
+    test_termusicframesource.cpp
+)
+
+target_link_libraries(ter-music-frame-source-test
+    PRIVATE
+        Lyrics::Service
+        Qt6::Core
+        Qt6::DBus
+        Qt6::Test
+)
+
+add_test(
+    NAME ter-music-frame-source-test
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:ter-music-frame-source-test>
+)
+set_tests_properties(ter-music-frame-source-test PROPERTIES TIMEOUT 20)
+
 add_executable(lyrics-dock-viewmodel-test
     test_lyricsdockviewmodel.cpp
 )
-
 target_link_libraries(lyrics-dock-viewmodel-test
     PRIVATE
         Lyrics::DockViewModel
@@ -207,7 +257,7 @@ target_link_libraries(lyrics-dock-viewmodel-test
 
 add_test(
     NAME lyrics-dock-viewmodel-test
-    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:lyrics-dock-viewmodel-test>
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:lyrics-dock-viewmodel-test>
 )
 set_tests_properties(lyrics-dock-viewmodel-test PROPERTIES TIMEOUT 20)
 
@@ -273,7 +323,7 @@ target_link_libraries(settings-viewmodel-test
 
 add_test(
     NAME settings-viewmodel-test
-    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:settings-viewmodel-test>
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:settings-viewmodel-test>
 )
 set_tests_properties(settings-viewmodel-test PROPERTIES TIMEOUT 20)
 
@@ -294,7 +344,7 @@ target_link_libraries(settings-window-test
 
 add_test(
     NAME settings-window-test
-    COMMAND ${DBUS_RUN_SESSION_EXECUTABLE} -- $<TARGET_FILE:settings-window-test>
+    COMMAND ${DBUS_TEST_WRAPPER} $<TARGET_FILE:settings-window-test>
 )
 set_tests_properties(settings-window-test PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen"

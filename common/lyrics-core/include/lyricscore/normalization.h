@@ -6,6 +6,7 @@
 namespace deepin::lyrics {
 
 QString normalizeText(const QString &text);
+double textScore(const QString &left, const QString &right);
 QString makeTrackKey(const TrackIdentity &track);
 double scoreLyricCandidate(const TrackIdentity &track, const ProviderRecord &record);
 QList<LyricCandidate> rankLyricCandidates(const TrackIdentity &track,

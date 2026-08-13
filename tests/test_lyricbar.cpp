@@ -17,7 +17,7 @@ private slots:
     void initTestCase();
     void smoothsForwardProgressAndResetsBackward();
     void scrollsOnlyOverflowingText();
-    void transitionsLyricsWithAnUpwardBounce();
+    void transitionsLyricsWithSmoothVerticalScroll();
     void showsVisualizerOnlyWhenExplicitlyEnabled();
 
 private:
@@ -88,7 +88,7 @@ void LyricBarTest::scrollsOnlyOverflowingText()
     QTRY_VERIFY_WITH_TIMEOUT(line->property("contentOffset").toDouble() > 0, 500);
 }
 
-void LyricBarTest::transitionsLyricsWithAnUpwardBounce()
+void LyricBarTest::transitionsLyricsWithSmoothVerticalScroll()
 {
     auto bar = createBar();
     QVERIFY(bar);
@@ -113,7 +113,7 @@ void LyricBarTest::transitionsLyricsWithAnUpwardBounce()
     QCOMPARE(outgoingLine->property("text").toString(), QStringLiteral("First line"));
     QVERIFY(outgoingLine->isVisible());
     QVERIFY(currentLine->y() > 2.0);
-    QVERIFY(currentLine->scale() < 1.0);
+    QCOMPARE(currentLine->scale(), 1.0);
 
     QTRY_VERIFY_WITH_TIMEOUT(!bar->property("lyricTransitionActive").toBool(), 300);
     QCOMPARE(currentLine->property("text").toString(), QStringLiteral("Third line"));

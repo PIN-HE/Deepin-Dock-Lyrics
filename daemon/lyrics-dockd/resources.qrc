@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="deepin-lyrics-dock.png">../../apps/lyrics-settings/icons/deepin-lyrics-dock.png</file>
+    </qresource>
+</RCC>

@@ -32,6 +32,7 @@ ProviderRecord recordFromJson(const QJsonObject &object, bool *valid)
     record.payload.recordId = record.id;
     record.payload.syncedLyrics = object.value(QStringLiteral("syncedLyrics")).toString();
     record.payload.plainLyrics = object.value(QStringLiteral("plainLyrics")).toString();
+    record.payload.translationLyrics = object.value(QStringLiteral("translationLyrics")).toString();
     record.payload.timing = !record.payload.syncedLyrics.isEmpty()
         ? TimingCapability::Line
         : (!record.payload.plainLyrics.isEmpty() ? TimingCapability::Plain : TimingCapability::None);
@@ -87,22 +88,26 @@ void LRCLIBProvider::getExact(const TrackIdentity &track, ResultCallback callbac
     QUrlQuery query;
     query.addQueryItem(QStringLiteral("track_name"), track.title);
     query.addQueryItem(QStringLiteral("artist_name"), track.artists.join(QStringLiteral(", ")));
-    query.addQueryItem(QStringLiteral("album_name"), track.album);
+    if (!track.album.trimmed().isEmpty())
+        query.addQueryItem(QStringLiteral("album_name"), track.album.trimmed());
     query.addQueryItem(QStringLiteral("duration"),
                        QString::number(qRound64(track.durationMs / 1000.0)));
     url.setQuery(query);
-    enqueue({url, false, 0, std::move(callback)});
+    enqueue({url, false, false, 0, std::move(callback)});
 }
 
 void LRCLIBProvider::search(const TrackIdentity &track, ResultCallback callback)
 {
     QUrl url = m_baseUrl.resolved(QUrl(QStringLiteral("/api/search")));
     QUrlQuery query;
-    query.addQueryItem(QStringLiteral("track_name"), track.title);
-    query.addQueryItem(QStringLiteral("artist_name"), track.artists.join(QStringLiteral(", ")));
-    query.addQueryItem(QStringLiteral("album_name"), track.album);
+    const QString title = track.title.trimmed();
+    const QString artist = track.artists.join(QStringLiteral(", ")).trimmed();
+    query.addQueryItem(QStringLiteral("track_name"), title);
+    query.addQueryItem(QStringLiteral("artist_name"), artist);
+    if (!track.album.trimmed().isEmpty())
+        query.addQueryItem(QStringLiteral("album_name"), track.album.trimmed());
     url.setQuery(query);
-    enqueue({url, true, 0, std::move(callback)});
+    enqueue({url, true, true, 0, std::move(callback)});
 }
 
 void LRCLIBProvider::getById(const QString &recordId, ResultCallback callback)
@@ -116,7 +121,7 @@ void LRCLIBProvider::getById(const QString &recordId, ResultCallback callback)
         return;
     }
     enqueue({m_baseUrl.resolved(QUrl(QStringLiteral("/api/get/") + recordId)),
-             false, 0, std::move(callback)});
+             false, false, 0, std::move(callback)});
 }
 
 void LRCLIBProvider::setBaseUrl(const QUrl &baseUrl)
@@ -198,6 +203,22 @@ void LRCLIBProvider::handleResponse(PendingRequest request, HttpResponse respons
         return;
     }
     if (response.statusCode == 404) {
+        if (request.allowQueryFallback) {
+            QUrl url = m_baseUrl.resolved(QUrl(QStringLiteral("/api/search")));
+            const QUrlQuery structured(request.url);
+            QUrlQuery query;
+            // The structured request is replaced with a compact keyword query.
+            // 结构化请求失败后改用紧凑关键词查询，避免重复发送 album_name。
+            query.removeAllQueryItems(QStringLiteral("q"));
+            query.addQueryItem(QStringLiteral("q"),
+                               structured.queryItemValue(QStringLiteral("track_name"))
+                                   + QStringLiteral(" ")
+                                   + structured.queryItemValue(QStringLiteral("artist_name")));
+            url.setQuery(query);
+            enqueue({url, true, false, 0, std::move(request.callback)});
+            processQueue();
+            return;
+        }
         complete(std::move(request), errorResult(ProviderResultKind::NotFound, {}));
         return;
     }
@@ -206,8 +227,23 @@ void LRCLIBProvider::handleResponse(PendingRequest request, HttpResponse respons
                  errorResult(ProviderResultKind::ProviderError, QStringLiteral("provider-failed")));
         return;
     }
-    complete(std::move(request), request.listResponse ? parseRecords(response.body)
-                                                      : parseRecord(response.body));
+    ProviderResult result = request.listResponse ? parseRecords(response.body)
+                                                 : parseRecord(response.body);
+    if (request.allowQueryFallback
+        && (result.kind != ProviderResultKind::Success || result.records.isEmpty())) {
+        const QUrlQuery structured(request.url);
+        QUrl url = m_baseUrl.resolved(QUrl(QStringLiteral("/api/search")));
+        QUrlQuery query;
+        query.addQueryItem(QStringLiteral("q"),
+                           structured.queryItemValue(QStringLiteral("track_name"))
+                               + QStringLiteral(" ")
+                               + structured.queryItemValue(QStringLiteral("artist_name")));
+        url.setQuery(query);
+        enqueue({url, true, false, 0, std::move(request.callback)});
+        processQueue();
+        return;
+    }
+    complete(std::move(request), std::move(result));
 }
 
 void LRCLIBProvider::complete(PendingRequest request, ProviderResult result)

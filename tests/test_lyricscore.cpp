@@ -12,7 +12,10 @@ class LyricsCoreTest : public QObject
 
 private slots:
     void normalizesWhitespaceUnicodeAndCase();
+    void normalizesTraditionalChinese();
+    void scoresCjkByCharacterBigrams();
     void makesStableTrackKeys();
+    void roundsDurationInTrackKeys();
     void scoresAndRanksCandidates();
 };
 
@@ -20,6 +23,17 @@ void LyricsCoreTest::normalizesWhitespaceUnicodeAndCase()
 {
     QCOMPARE(normalizeText(QString::fromUtf8("  \xef\xbc\xa1\xe3\x80\x80\xef\xbc\xa2  ")), QStringLiteral("a b"));
     QCOMPARE(normalizeText(QStringLiteral("  M\u00dcSIC\tPlayer  ")), QStringLiteral("m\u00fcsic player"));
+}
+
+void LyricsCoreTest::normalizesTraditionalChinese()
+{
+    QCOMPARE(normalizeText(QStringLiteral("周杰倫")), QStringLiteral("周杰伦"));
+}
+
+void LyricsCoreTest::scoresCjkByCharacterBigrams()
+{
+    QVERIFY(textScore(QStringLiteral("夜曲"), QStringLiteral("夜曲(Live)")) >= 0.80);
+    QCOMPARE(textScore(QStringLiteral("周杰伦"), QStringLiteral("周杰倫")), 1.0);
 }
 
 void LyricsCoreTest::makesStableTrackKeys()
@@ -38,6 +52,16 @@ void LyricsCoreTest::makesStableTrackKeys()
 
     QCOMPARE(makeTrackKey(first), makeTrackKey(second));
     QVERIFY(!makeTrackKey(first).contains(first.playerBusName));
+}
+
+void LyricsCoreTest::roundsDurationInTrackKeys()
+{
+    TrackIdentity first;
+    first.title = QStringLiteral("Song");
+    first.durationMs = 213001;
+    TrackIdentity second = first;
+    second.durationMs = 213499;
+    QCOMPARE(makeTrackKey(first), makeTrackKey(second));
 }
 
 void LyricsCoreTest::scoresAndRanksCandidates()

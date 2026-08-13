@@ -20,7 +20,7 @@ ParsedLyrics timedLyrics()
     return {{{1000, QStringLiteral("First")},
              {3000, QStringLiteral("Second")},
              {5000, QStringLiteral("Last")}},
-            {}, 0, TimingCapability::Line};
+            {}, {}, 0, TimingCapability::Line};
 }
 
 void LyricSyncTest::computesLineBoundaries()
@@ -37,12 +37,14 @@ void LyricSyncTest::computesLineBoundaries()
 
     frame = frameAt(track, lyrics, 2000, 0);
     QCOMPARE(frame.currentText, QStringLiteral("First"));
+    QCOMPARE(frame.previousText, QString());
     QCOMPARE(frame.secondaryText, QStringLiteral("Second"));
     QCOMPARE(frame.lineIndex, 0);
     QCOMPARE(frame.lineProgress, 0.5);
 
     frame = frameAt(track, lyrics, 6000, 0);
     QCOMPARE(frame.currentText, QStringLiteral("Last"));
+    QCOMPARE(frame.previousText, QStringLiteral("Second"));
     QCOMPARE(frame.secondaryText, QString());
     QCOMPARE(frame.lineIndex, 2);
     QCOMPARE(frame.lineProgress, 1.0);

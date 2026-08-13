@@ -3,19 +3,24 @@
 #include "infrastructure/lyricsdbusadapter.h"
 #include "infrastructure/lrcliblyricsadapter.h"
 #include "infrastructure/lrclibprovider.h"
+#include "infrastructure/multisourcelyricprovider.h"
+#include "infrastructure/locallyricsprovider.h"
+#include "infrastructure/playercachelyricsprovider.h"
 #include "infrastructure/mprisplayeradapter.h"
 #include "infrastructure/openccchinesescriptconverter.h"
 #include "infrastructure/pipewireaudiovisualizeradapter.h"
 #include "infrastructure/qtnetworktransport.h"
 #include "infrastructure/sqlitelyricscache.h"
+#include "infrastructure/termusicframesource.h"
+#include "systemtrayicon.h"
 
 #include <lyricslogging/logengine.h>
 #include <deepinlyrics/version.h>
 
 #include <DLog>
 
+#include <QApplication>
 #include <QCommandLineParser>
-#include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDir>
 #include <QStandardPaths>
@@ -25,7 +30,7 @@ using namespace deepin::lyrics;
 
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
+    QApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("lyrics-dockd"));
     app.setApplicationVersion(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION));
 
@@ -54,8 +59,14 @@ int main(int argc, char *argv[])
     MprisPlayerAdapter player(QDBusConnection::sessionBus());
     QtNetworkTransport transport;
     LRCLIBProvider provider(transport);
+    LocalLyricsProvider localProvider;
+    PlayerCacheLyricsProvider playerCacheProvider;
+    MultiSourceLyricProvider providers;
+    providers.addSource(localProvider, 1.0);
+    providers.addSource(playerCacheProvider, 0.9);
+    providers.addSource(provider, 0.70);
     SqliteLyricsCache cache;
-    LrclibLyricsAdapter lyrics(provider, cache, logger);
+    LrclibLyricsAdapter lyrics(providers, cache, logger);
     OpenCcChineseScriptConverter scriptConverter;
     PipeWireAudioVisualizerAdapter visualizer;
     if (!scriptConverter.isValid()) {
@@ -68,6 +79,8 @@ int main(int argc, char *argv[])
         settings.setPlayerBusName(parser.value(QStringLiteral("player")));
 
     LyricsServiceController controller(player, settings, logger, scriptConverter, &lyrics, &visualizer);
+    TerMusicFrameSource terMusicFrame(QDBusConnection::sessionBus());
+    controller.setExternalFramePort(&terMusicFrame);
     LyricsDbusAdapter dbus(controller, QDBusConnection::sessionBus());
     QString errorCode;
     if (!dbus.registerService(&errorCode)) {
@@ -81,5 +94,10 @@ int main(int argc, char *argv[])
                      &app, &QCoreApplication::quit);
     logger.write(LogLevel::Info, QStringLiteral("daemon"), QStringLiteral("service_started"));
     controller.start();
+
+    // 启用系统托盘图标
+    SystemTrayIcon trayIcon(controller);
+    trayIcon.show();
+
     return app.exec();
 }

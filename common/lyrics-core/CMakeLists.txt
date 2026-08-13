@@ -14,6 +14,7 @@ target_include_directories(lyrics-core
 target_link_libraries(lyrics-core
     PUBLIC
         Qt6::Core
+        PkgConfig::OpenCC
 )
 
 target_compile_features(lyrics-core PUBLIC cxx_std_17)

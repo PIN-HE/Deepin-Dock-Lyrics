@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ports/externalframeport.h"
 #include "ports/lyricsport.h"
 #include "ports/playerport.h"
 #include "ports/settingsport.h"
@@ -64,6 +65,9 @@ public:
                          QString *errorCode = nullptr);
     void setSessionHidden(bool hidden);
     void clearCache();
+    // 注入外部帧源（Ter-Music 等播放器内置歌词）。在 start() 前调用。
+    // Inject an external frame source (player built-in lyrics). Call before start().
+    void setExternalFramePort(ExternalFramePort *externalFrame);
 
 signals:
     void stateChanged(const QVariantMap &state);
@@ -82,6 +86,8 @@ private slots:
     void onNoLyrics();
     void onCandidatesChanged(const QList<LyricCandidate> &candidates);
     void onLyricsFailed(const QString &errorCode);
+    void onExternalFrameAvailable(const ExternalLyricFrame &frame);
+    void onExternalFrameStopped();
 
 private:
     void refreshStatus();
@@ -91,6 +97,8 @@ private:
     void clearFrame();
     void refreshVisualizer();
     void clearVisualizerFrame();
+    void syncExternalFramePlayer();
+    void publishExternalFrame();
     bool shouldVisualize() const;
     bool currentTrackSearchable() const;
     static QString statusName(ServiceStatus status);
@@ -101,10 +109,13 @@ private:
     LyricsPort *m_lyrics = nullptr;
     AudioVisualizerPort *m_visualizer = nullptr;
     ChineseScriptConverter *m_scriptConverter = nullptr;
+    ExternalFramePort *m_externalFrame = nullptr;
     QList<PlayerDescriptor> m_players;
     QVariantList m_candidateMaps;
     PlayerSnapshot m_snapshot;
     ParsedLyrics m_parsedLyrics;
+    ExternalLyricFrame m_externalLyricFrame;
+    bool m_externalFrameActive = false;
     QVariantMap m_lastPublishedState;
     QVariantMap m_lastPublishedFrame;
     VisualizerFrame m_visualizerFrame;

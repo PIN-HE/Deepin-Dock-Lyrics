@@ -46,6 +46,7 @@ class LRCLIBProviderTest final : public QObject
 
 private slots:
     void buildsExactRequestAndParsesRecord();
+    void searchesWithStructuredQueryThenKeywordFallback();
     void serializesRequestsWithMinimumInterval();
     void retriesServerFailureThenReportsNetworkError();
     void retryBackoffPreservesQueueOrder();
@@ -76,6 +77,7 @@ void LRCLIBProviderTest::buildsExactRequestAndParsesRecord()
 {
     FakeHttpTransport transport;
     LRCLIBProvider provider(transport);
+    QSignalSpy requestSpy(&transport, &FakeHttpTransport::requested);
     ProviderResult result;
     bool completed = false;
     provider.getExact(testTrack(), [&](ProviderResult value) {
@@ -89,6 +91,7 @@ void LRCLIBProviderTest::buildsExactRequestAndParsesRecord()
     const QUrlQuery query(request.url);
     QCOMPARE(query.queryItemValue(QStringLiteral("track_name")), QStringLiteral("Example Track"));
     QCOMPARE(query.queryItemValue(QStringLiteral("artist_name")), QStringLiteral("Example Artist"));
+    QVERIFY(query.hasQueryItem(QStringLiteral("album_name")));
     QCOMPARE(query.queryItemValue(QStringLiteral("duration")), QStringLiteral("213"));
     const QByteArray userAgent = request.headers.value(QByteArrayLiteral("User-Agent"));
     QVERIFY(userAgent.contains("DeepinDockLyrics"));
@@ -100,6 +103,43 @@ void LRCLIBProviderTest::buildsExactRequestAndParsesRecord()
     QCOMPARE(result.kind, ProviderResultKind::Success);
     QCOMPARE(result.record.id, QStringLiteral("1000000"));
     QCOMPARE(result.record.payload.timing, TimingCapability::Line);
+
+    TrackIdentity withoutAlbum = testTrack();
+    withoutAlbum.album.clear();
+    provider.getExact(withoutAlbum, [](ProviderResult) { });
+    QVERIFY(requestSpy.wait(1000));
+    const QUrlQuery noAlbumQuery(transport.requests.at(1).url);
+    QVERIFY(!noAlbumQuery.hasQueryItem(QStringLiteral("album_name")));
+}
+
+void LRCLIBProviderTest::searchesWithStructuredQueryThenKeywordFallback()
+{
+    FakeHttpTransport transport;
+    LRCLIBProvider provider(transport);
+    QSignalSpy requestSpy(&transport, &FakeHttpTransport::requested);
+    ProviderResult result;
+    provider.search(testTrack(), [&](ProviderResult value) { result = std::move(value); });
+
+    QCOMPARE(transport.requests.size(), 1);
+    QUrlQuery structured(transport.requests.constFirst().url);
+    QCOMPARE(structured.queryItemValue(QStringLiteral("track_name")),
+             QStringLiteral("Example Track"));
+    QCOMPARE(structured.queryItemValue(QStringLiteral("artist_name")),
+             QStringLiteral("Example Artist"));
+    QCOMPARE(structured.queryItemValue(QStringLiteral("album_name")),
+             QStringLiteral("Example Album"));
+
+    transport.respond({200, QByteArrayLiteral("[]"), {}, {}});
+    QVERIFY(requestSpy.wait(1000));
+    QCOMPARE(transport.requests.size(), 2);
+    QUrlQuery keyword(transport.requests.at(1).url);
+    QCOMPARE(keyword.queryItemValue(QStringLiteral("q")),
+             QStringLiteral("Example Track Example Artist"));
+    QVERIFY(!keyword.hasQueryItem(QStringLiteral("album_name")));
+
+    transport.respond({200, QByteArrayLiteral("[]"), {}, {}});
+    QCOMPARE(result.kind, ProviderResultKind::Success);
+    QVERIFY(result.records.isEmpty());
 }
 
 void LRCLIBProviderTest::serializesRequestsWithMinimumInterval()

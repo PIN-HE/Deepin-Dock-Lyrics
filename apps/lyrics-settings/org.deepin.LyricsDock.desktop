@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Deepin Dock Lyrics
+Name[zh_CN]=Deepin状态栏歌词
+GenericName=Lyrics Display Settings
+GenericName[zh_CN]=歌词显示设置
+Comment=Display synchronized lyrics in the Deepin Dock
+Comment[zh_CN]=在 Deepin 任务栏中显示同步歌词
+Icon=deepin-lyrics-dock
+Exec=deepin-lyrics-settings
+Terminal=false
+Categories=Settings;DesktopSettings;Qt;
+Keywords=lyrics;music;dock;deepin;
+Keywords[zh_CN]=歌词;音乐;任务栏;状态栏;
+StartupNotify=true

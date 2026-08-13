@@ -12,6 +12,7 @@ struct LyricPayload {
     QString recordId;
     QString syncedLyrics;
     QString plainLyrics;
+    QString translationLyrics;
     TimingCapability timing = TimingCapability::None;
 };
 
@@ -22,6 +23,9 @@ struct ProviderRecord {
     QString albumName;
     qint64 durationMs = -1;
     bool instrumental = false;
+    // Provider trust is assigned by the coordinator, not by remote payloads.
+    // 来源信任度由协调器分配，不接受远端响应中的值。
+    double sourceTrust = 0.0;
     LyricPayload payload;
 };
 

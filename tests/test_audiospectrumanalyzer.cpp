@@ -13,6 +13,7 @@ class AudioSpectrumAnalyzerTest final : public QObject
 private slots:
     void returnsZeroForSilence();
     void returnsBoundedEnergyForAudio();
+    void distributesMixedToneEnergyAcrossBands();
 };
 
 void AudioSpectrumAnalyzerTest::returnsZeroForSilence()
@@ -39,6 +40,25 @@ void AudioSpectrumAnalyzerTest::returnsBoundedEnergyForAudio()
         hasEnergy = hasEnergy || level > 0.05F;
     }
     QVERIFY(hasEnergy);
+}
+
+void AudioSpectrumAnalyzerTest::distributesMixedToneEnergyAcrossBands()
+{
+    QVector<float> samples;
+    samples.reserve(256);
+    for (int index = 0; index < 256; ++index) {
+        const double low = 0.55 * std::sin(2.0 * M_PI * 3.0 * index / 256.0);
+        const double mid = 0.30 * std::sin(2.0 * M_PI * 36.0 * index / 256.0);
+        const double high = 0.15 * std::sin(2.0 * M_PI * 92.0 * index / 256.0);
+        samples.append(float(low + mid + high));
+    }
+
+    AudioSpectrumAnalyzer analyzer;
+    const VisualizerFrame frame = analyzer.analyze(samples);
+    int visibleBandCount = 0;
+    for (const float level : frame.levels)
+        visibleBandCount += level > 0.08F;
+    QVERIFY(visibleBandCount >= 3);
 }
 
 QTEST_GUILESS_MAIN(AudioSpectrumAnalyzerTest)

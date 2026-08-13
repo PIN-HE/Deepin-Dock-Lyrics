@@ -30,6 +30,12 @@ add_library(lyrics-service STATIC
     infrastructure/lrcliblyricsadapter.h
     infrastructure/lrclibprovider.cpp
     infrastructure/lrclibprovider.h
+    infrastructure/multisourcelyricprovider.cpp
+    infrastructure/multisourcelyricprovider.h
+    infrastructure/locallyricsprovider.cpp
+    infrastructure/locallyricsprovider.h
+    infrastructure/playercachelyricsprovider.cpp
+    infrastructure/playercachelyricsprovider.h
     infrastructure/mprisplayeradapter.cpp
     infrastructure/mprisplayeradapter.h
     infrastructure/openccchinesescriptconverter.cpp
@@ -38,6 +44,8 @@ add_library(lyrics-service STATIC
     infrastructure/pipewirestreammatcher.h
     infrastructure/pipewireaudiovisualizeradapter.cpp
     infrastructure/pipewireaudiovisualizeradapter.h
+    infrastructure/termusicframesource.cpp
+    infrastructure/termusicframesource.h
     infrastructure/qtnetworktransport.cpp
     infrastructure/qtnetworktransport.h
     infrastructure/sqlitelyricscache.cpp
@@ -45,6 +53,7 @@ add_library(lyrics-service STATIC
     ports/httptransport.h
     ports/audiovisualizerport.h
     ports/chinesescriptconverter.h
+    ports/externalframeport.h
     ports/lyricscache.h
     ports/lyricsport.h
     ports/playerport.h
@@ -79,6 +88,9 @@ target_link_libraries(lyrics-service
 
 add_executable(lyrics-dockd
     main.cpp
+    systemtrayicon.cpp
+    systemtrayicon.h
+    resources.qrc
 )
 
 target_link_libraries(lyrics-dockd
@@ -89,6 +101,8 @@ target_link_libraries(lyrics-dockd
         Qt6::DBus
         Qt6::Network
         Qt6::Sql
+        Qt6::Gui
+        Qt6::Widgets
         Dtk6::Core
 )
 

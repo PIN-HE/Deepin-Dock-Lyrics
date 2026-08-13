@@ -30,6 +30,7 @@ private:
     struct PendingRequest {
         QUrl url;
         bool listResponse = false;
+        bool allowQueryFallback = false;
         int attempt = 0;
         ResultCallback callback;
     };

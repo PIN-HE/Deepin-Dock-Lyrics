@@ -88,6 +88,13 @@ ParsedLyrics parseLyrics(const LyricPayload &payload)
     for (auto iterator = linesByTimestamp.cbegin(); iterator != linesByTimestamp.cend(); ++iterator)
         result.lines.append({iterator.key(), iterator.value()});
 
+    if (!payload.translationLyrics.trimmed().isEmpty()) {
+        LyricPayload translationPayload;
+        translationPayload.syncedLyrics = payload.translationLyrics;
+        const ParsedLyrics parsedTranslation = parseLyrics(translationPayload);
+        result.translationLines = parsedTranslation.lines;
+    }
+
     if (!result.lines.isEmpty()) {
         result.timing = TimingCapability::Line;
         return result;

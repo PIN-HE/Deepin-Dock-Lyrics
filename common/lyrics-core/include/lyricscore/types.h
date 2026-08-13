@@ -48,6 +48,12 @@ struct TrackIdentity {
     qint64 durationMs = -1;
     QString playerBusName;
     bool searchable = false;
+    // Only local artwork is exposed for automatic display; remote URLs are ignored.
+    // 自动展示只暴露本地封面，远程 URL 会被忽略。
+    QString artUrl;
+    // MPRIS media URL is used only for local sidecar/cache lookup.
+    // MPRIS 媒体 URL 仅用于本地旁置歌词和缓存查找。
+    QString mediaUrl;
 };
 
 struct PlayerDescriptor {
@@ -74,6 +80,7 @@ struct LyricLine {
 
 struct ParsedLyrics {
     QVector<LyricLine> lines;
+    QVector<LyricLine> translationLines;
     QString plainText;
     qint64 sourceOffsetMs = 0;
     TimingCapability timing = TimingCapability::None;
@@ -87,10 +94,12 @@ struct LyricCandidate {
     QString album;
     qint64 durationMs = -1;
     double score = 0.0;
+    double sourceTrust = 0.0;
 };
 
 struct LyricFrame {
     TrackIdentity track;
+    QString previousText;
     QString currentText;
     QString secondaryText;
     QString translationText;

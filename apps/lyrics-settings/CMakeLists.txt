@@ -42,6 +42,7 @@ target_link_libraries(lyrics-settings-window
 
 add_executable(deepin-lyrics-settings
     main.cpp
+    resources.qrc
 )
 
 qt_add_translation(SETTINGS_QM_FILES
@@ -72,4 +73,13 @@ target_link_libraries(deepin-lyrics-settings
 
 install(TARGETS deepin-lyrics-settings
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
+install(FILES org.deepin.LyricsDock.desktop
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+)
+
+install(FILES icons/deepin-lyrics-dock.png
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/128x128/apps
+    RENAME deepin-lyrics-dock.png
 )

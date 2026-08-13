@@ -1,4 +1,5 @@
 #include "lyricscore/lrcparser.h"
+#include "lyricscore/lyricsync.h"
 
 #include <QFile>
 #include <QtTest>
@@ -12,6 +13,8 @@ class LrcParserTest final : public QObject
 private slots:
     void parsesTimedFixture();
     void removesControlCharacters();
+    void parsesTimestampMatchedTranslation();
+    void parsesTranslationWithRoundedTimestamp();
     void fallsBackToPlainLyrics();
     void returnsNoneForEmptyLyrics();
 };
@@ -51,6 +54,27 @@ void LrcParserTest::removesControlCharacters()
 
     QCOMPARE(parsed.lines.size(), 1);
     QCOMPARE(parsed.lines.constFirst().text, QStringLiteral("保留Unicode 日本語"));
+}
+
+void LrcParserTest::parsesTimestampMatchedTranslation()
+{
+    LyricPayload payload;
+    payload.syncedLyrics = QStringLiteral("[00:01.00]Original");
+    payload.translationLyrics = QStringLiteral("[00:01.00]翻译");
+
+    const ParsedLyrics parsed = parseLyrics(payload);
+
+    QCOMPARE(parsed.translationLines.size(), 1);
+    QCOMPARE(parsed.translationLines.constFirst().text, QStringLiteral("翻译"));
+}
+
+void LrcParserTest::parsesTranslationWithRoundedTimestamp()
+{
+    LyricPayload payload;
+    payload.syncedLyrics = QStringLiteral("[00:01.20]Original");
+    payload.translationLyrics = QStringLiteral("[00:01.00]翻译");
+    const ParsedLyrics parsed = parseLyrics(payload);
+    QCOMPARE(frameAt({}, parsed, 1500, 0).translationText, QStringLiteral("翻译"));
 }
 
 void LrcParserTest::fallsBackToPlainLyrics()

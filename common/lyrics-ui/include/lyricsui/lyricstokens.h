@@ -44,6 +44,7 @@ class LyricsTokens final : public QObject
     Q_PROPERTY(QColor dockLyricCurrentColor READ dockLyricCurrentColor NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor dockLyricSecondaryColor READ dockLyricSecondaryColor NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor dockLyricProgressColor READ dockLyricProgressColor NOTIFY paletteChanged FINAL)
+    Q_PROPERTY(QColor dockLyricVisualizerColor READ dockLyricVisualizerColor NOTIFY paletteChanged FINAL)
     Q_PROPERTY(QColor dockLyricTrackColor READ dockLyricTrackColor NOTIFY paletteChanged FINAL)
 
 public:
@@ -84,6 +85,7 @@ public:
     QColor dockLyricCurrentColor() const;
     QColor dockLyricSecondaryColor() const;
     QColor dockLyricProgressColor() const;
+    QColor dockLyricVisualizerColor() const;
     QColor dockLyricTrackColor() const;
 
 public slots:

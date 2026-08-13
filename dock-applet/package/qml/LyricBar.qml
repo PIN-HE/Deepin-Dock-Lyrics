@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import org.deepin.lyricsdock 1.0
 
 Rectangle {
@@ -11,6 +12,7 @@ Rectangle {
     property bool progressVisible: false
     property bool visualizerVisible: false
     property var visualizerLevels: []
+    property string artUrl: ""
     // 歌词滚动用于展示被裁切的内容，因此不能被宿主误判的装饰动画偏好关闭。
     // Lyric scrolling reveals clipped content, so a host's decorative-motion preference must not disable it.
     property bool motionEnabled: true
@@ -87,7 +89,7 @@ Rectangle {
         outgoingLine.opacity = 1
         currentLine.y = textArea.secondaryLineRestY
         currentLine.opacity = 1
-        currentLine.scale = 0.96
+        currentLine.scale = 1
         secondaryLine.y = textArea.secondaryLineRestY + LyricsTokens.dockLineHeight
         secondaryLine.opacity = 0
         lyricTransition.start()
@@ -109,16 +111,64 @@ Rectangle {
         updateProgress()
         resetLyricLines()
     }
+    onVisualizerVisibleChanged: {
+        // A mode switch must cancel any lyric transition before the lyric layer is hidden.
+        // 切换可视化模式时先取消歌词转场，防止旧歌词在 Dock 外残留。
+        resetLyricLines()
+    }
 
     Behavior on color {
         ColorAnimation { duration: LyricsTokens.motionFast }
     }
 
     Item {
-        id: textArea
+        id: coverArtItem
+
+        readonly property int artSize: Math.round(LyricsTokens.dockVisualHeight * 0.72)
+        readonly property int artMargin: LyricsTokens.space2
 
         anchors.left: parent.left
-        anchors.leftMargin: LyricsTokens.space3
+        anchors.leftMargin: artMargin
+        anchors.verticalCenter: parent.verticalCenter
+        width: artUrl.length > 0 ? artSize : 0
+        height: artSize
+
+        Behavior on width {
+            NumberAnimation { duration: LyricsTokens.motionFast; easing.type: Easing.OutCubic }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 3
+            color: LyricsTokens.borderSubtle
+            visible: coverImage.status !== Image.Ready && parent.width > 0
+        }
+
+        Image {
+            id: coverImage
+
+            anchors.fill: parent
+            source: root.artUrl
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            visible: status === Image.Ready
+
+            layer.enabled: true
+            layer.effect: OpacityMask {
+                maskSource: Rectangle {
+                    width: coverImage.width
+                    height: coverImage.height
+                    radius: 4
+                }
+            }
+        }
+    }
+
+    Item {
+        id: textArea
+
+        anchors.left: coverArtItem.right
+        anchors.leftMargin: coverArtItem.width > 0 ? coverArtItem.artMargin : LyricsTokens.space3
         anchors.right: closeButton.left
         anchors.rightMargin: LyricsTokens.space1
         anchors.top: parent.top
@@ -177,12 +227,15 @@ Rectangle {
             visible: root.visualizerVisible
 
             Row {
+                id: visualizerRow
+
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
+                height: Math.max(8, LyricsTokens.dockVisualHeight - 8)
                 anchors.leftMargin: 2
                 anchors.rightMargin: 2
-                spacing: 3
+                spacing: 4
 
                 Repeater {
                     model: 16
@@ -191,14 +244,15 @@ Rectangle {
                         readonly property real level: index < root.visualizerLevels.length
                                                       ? Math.max(0, Math.min(1,
                                                           Number(root.visualizerLevels[index]))) : 0
-                        width: Math.max(2, (visualizer.width - 4 - 15 * 3) / 16)
-                        height: Math.max(3, level * (LyricsTokens.dockVisualHeight - 10))
-                        anchors.verticalCenter: parent.verticalCenter
-                        color: LyricsTokens.dockLyricProgressColor
-                        radius: 1
+                        width: Math.max(2, Math.min(4,
+                            (visualizer.width - 4 - 15 * visualizerRow.spacing) / 16))
+                        height: Math.max(4, level * (visualizerRow.height - 4))
+                        y: (visualizerRow.height - height) / 2
+                        color: LyricsTokens.dockLyricVisualizerColor
+                        radius: width / 2
 
                         Behavior on height {
-                            NumberAnimation { duration: 50; easing.type: Easing.OutQuad }
+                            NumberAnimation { duration: 70; easing.type: Easing.OutCubic }
                         }
                     }
                 }
@@ -280,48 +334,37 @@ Rectangle {
             NumberAnimation {
                 target: outgoingLine
                 property: "y"
-                to: textArea.currentLineRestY - LyricsTokens.dockLineHeight * 0.45
+                to: textArea.currentLineRestY - LyricsTokens.dockLineHeight
                 duration: root.lyricTransitionDuration
-                easing.type: Easing.InCubic
+                easing.type: Easing.Linear
             }
             NumberAnimation {
                 target: outgoingLine
                 property: "opacity"
                 to: 0
                 duration: root.lyricTransitionDuration
-                easing.type: Easing.InQuad
+                easing.type: Easing.Linear
             }
             NumberAnimation {
                 target: currentLine
                 property: "y"
                 to: textArea.currentLineRestY
                 duration: root.lyricTransitionDuration
-                // 使用超过终点再回落的贝塞尔曲线，形成轻微的上弹感。
-                // A Bezier curve that overshoots its endpoint creates the subtle upward bounce.
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: [0.18, 0.90, 0.28, 1.16, 1.0, 1.0]
-            }
-            NumberAnimation {
-                target: currentLine
-                property: "scale"
-                to: 1
-                duration: root.lyricTransitionDuration
-                easing.type: Easing.BezierSpline
-                easing.bezierCurve: [0.18, 0.90, 0.28, 1.16, 1.0, 1.0]
+                easing.type: Easing.Linear
             }
             NumberAnimation {
                 target: secondaryLine
                 property: "y"
                 to: textArea.secondaryLineRestY
                 duration: root.lyricTransitionDuration
-                easing.type: Easing.OutCubic
+                easing.type: Easing.Linear
             }
             NumberAnimation {
                 target: secondaryLine
                 property: "opacity"
                 to: root.displayedSecondaryText.length > 0 ? 1 : 0
                 duration: root.lyricTransitionDuration
-                easing.type: Easing.OutQuad
+                easing.type: Easing.Linear
             }
         }
         ScriptAction {
