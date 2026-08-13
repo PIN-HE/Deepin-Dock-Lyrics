@@ -3,6 +3,7 @@
 
 #include <deepinlyrics/version.h>
 
+#include <DAboutDialog>
 #include <DApplication>
 #include <DIconTheme>
 #include <DLog>
@@ -32,6 +33,23 @@ int main(int argc, char *argv[])
     app.setProductIcon(QIcon(QStringLiteral(":/icons/deepin-lyrics-dock.png")));
     app.setApplicationDescription(QObject::tr("Display synchronized lyrics in the Deepin Dock."));
     app.setApplicationLicense(QStringLiteral("MIT"));
+
+    // 关于对话框（标题栏汉堡菜单 → 关于）：元数据 + 第三方致谢。
+    // About dialog (title-bar hamburger menu): metadata plus third-party
+    // acknowledgements.
+    auto *aboutDialog = new Dtk::Widget::DAboutDialog;
+    aboutDialog->setProductName(QObject::tr("Deepin Dock Lyrics"));
+    aboutDialog->setVersion(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION));
+    aboutDialog->setDescription(QObject::tr(
+        "Display synchronized lyrics in the Deepin Dock.\n"
+        "\n"
+        "致谢 Acknowledgements:\n"
+        "端闼乐部（Ter-Music）· 终端音乐播放器，提供歌词 D-Bus 接口，感谢开发者 燕戏竹林："
+        "https://github.com/HuanSoft-Open-Source-Community/ter-music\n"
+        "歌词数据与接口参考：LRCLIB（lrclib.net）、TaskbarLyrics。"));
+    aboutDialog->setWebsiteName(QStringLiteral("GitHub"));
+    aboutDialog->setWebsiteLink(QStringLiteral("https://github.com/PIN-HE/Deepin-Dock-Lyrics"));
+    app.setAboutDialog(aboutDialog);
     Dtk::Core::DLogManager::registerConsoleAppender();
     Dtk::Core::DLogManager::registerFileAppender();
 

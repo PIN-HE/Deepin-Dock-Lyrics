@@ -2,7 +2,6 @@
 
 #include "settingsviewmodel.h"
 
-#include <deepinlyrics/version.h>
 #include <lyricsui/lyricstokens.h>
 
 #include <DComboBox>
@@ -331,47 +330,6 @@ QWidget *SettingsWindow::createSettingsPage()
     });
     privacyLayout->addWidget(m_clearCacheButton);
     layout->addWidget(createSection(tr("Privacy and cache"), privacyContent));
-
-    // 关于与致谢：版本、仓库与第三方致谢（端闼乐部等）。
-    // About and acknowledgements: version, repository, and third-party
-    // credits (Ter-Music 端闼乐部 and others).
-    auto *aboutContent = new QWidget(content);
-    auto *aboutLayout = new QVBoxLayout(aboutContent);
-    aboutLayout->setContentsMargins(0, 0, 0, 0);
-    aboutLayout->setSpacing(m_tokens->space2());
-
-    auto *versionLabel = descriptionLabel(
-        tr("Deepin Dock Lyrics %1 · MIT License")
-            .arg(QStringLiteral(DEEPIN_DOCK_LYRICS_VERSION)),
-        aboutContent);
-    aboutLayout->addWidget(versionLabel);
-
-    auto *repoLink = new QLabel(
-        QStringLiteral("<a href=\"https://github.com/PIN-HE/Deepin-Dock-Lyrics\">%1</a>")
-            .arg(tr("Source repository on GitHub")),
-        aboutContent);
-    repoLink->setObjectName(QStringLiteral("aboutRepoLink"));
-    repoLink->setOpenExternalLinks(true);
-    repoLink->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    aboutLayout->addWidget(repoLink);
-
-    aboutLayout->addWidget(descriptionLabel(
-        tr("Acknowledgements"), aboutContent));
-    aboutLayout->addWidget(descriptionLabel(
-        tr("端闼乐部（Ter-Music）· 终端音乐播放器，提供歌词 D-Bus 接口。感谢开发者 燕戏竹林："),
-        aboutContent));
-    auto *terMusicLink = new QLabel(
-        QStringLiteral("<a href=\"https://github.com/HuanSoft-Open-Source-Community/ter-music\">%1</a>")
-            .arg(QStringLiteral("HuanSoft-Open-Source-Community/ter-music")),
-        aboutContent);
-    terMusicLink->setObjectName(QStringLiteral("aboutTerMusicLink"));
-    terMusicLink->setOpenExternalLinks(true);
-    terMusicLink->setTextInteractionFlags(Qt::TextBrowserInteraction);
-    aboutLayout->addWidget(terMusicLink);
-    aboutLayout->addWidget(descriptionLabel(
-        tr("歌词数据与接口参考：LRCLIB（lrclib.net）、TaskbarLyrics。"), aboutContent));
-
-    layout->addWidget(createSection(tr("About"), aboutContent));
 
     m_busyIndicator = new QProgressBar(content);
     m_busyIndicator->setObjectName(QStringLiteral("busyIndicator"));
