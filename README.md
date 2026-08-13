@@ -22,7 +22,7 @@
 > Skills 使用说明见下文[AI 辅助开发工作流](#ai-辅助开发工作流deepin-skills)。
 
 - 源码仓库:<https://github.com/PIN-HE/Deepin-Dock-Lyrics>
-- 版本:`v1.0.0`(发布说明见 [CHANGELOG.md](CHANGELOG.md))
+- 当前版本:`v1.0.0.1`(发布说明见 [CHANGELOG.md](CHANGELOG.md))
 
 ---
 
@@ -339,6 +339,11 @@ Skills 安装于 `~/.agents/skills/`(与 AI 编程工具通过 skill 机制集�
 
 本项目采用 **MIT 协议**(OSI 批准的开源协议),全文见 [LICENSE](LICENSE)。
 产品不播放音乐、不要求用户登录、无遥测上传。
+
+## 生态联动
+
+本项目与 deepin 社区终端音乐播放器 [**Ter-Music**](https://github.com/YXZL985/ter-music)
+实现了协议联动，感谢作者 [@YXZL985](https://github.com/YXZL985) 提供歌词 D-Bus API 支持。
 
 ## 相关文档
 

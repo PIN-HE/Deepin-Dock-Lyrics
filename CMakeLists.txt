@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(deepin_dock_lyrics VERSION 1.0.1 LANGUAGES CXX)
+project(deepin_dock_lyrics VERSION 1.0.0.1 LANGUAGES CXX)
 
 include(CTest)
 include(GNUInstallDirs)

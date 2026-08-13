@@ -10,7 +10,7 @@
 | **源码仓库** | <https://github.com/PIN-HE/Deepin-Dock-Lyrics> |
 | **作品类型** | dde-shell Dock Applet + 用户会话后台服务(`lyrics-dockd`)+ DTK6 设置应用 |
 | **开源协议** | MIT(OSI 批准) |
-| **版本** | v1.0.0 |
+| **版本** | v1.0.0.1 |
 
 ## 一、作品简介
 

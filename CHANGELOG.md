@@ -7,7 +7,7 @@
 - Dock 状态、工具提示与设置应用根据系统语言自动切换简体中文或英文。
 - Switch Dock status text, tooltips, and the settings application between Simplified Chinese and English according to the system locale.
 
-## 1.0.1 - 2026-08-13
+## 1.0.0.1 - 2026-08-13
 
 ### 中文
 
