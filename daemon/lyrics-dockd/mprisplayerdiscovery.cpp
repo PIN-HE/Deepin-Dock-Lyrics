@@ -313,11 +313,18 @@ void MprisPlayerDiscovery::pollPosition()
                 const qlonglong positionUs = reply.value().variant().toLongLong(&valid);
                 if (!valid)
                     return;
-                // 以上报值重建外推基准，再按经过时间插值（见 updateSnapshotPosition）。
-                // Rebase extrapolation on the reported value, then interpolate
-                // by elapsed time (see updateSnapshotPosition).
-                m_lastPositionUs = std::max<qlonglong>(0, positionUs);
-                m_lastPositionClockMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+                // 只有上报值追平或超过外推值时才重建基准；否则保持旧基准，
+                // 让 positionMs 在两次上报之间按 Rate 持续平滑推进。
+                // Rebase only when the reported value catches up with (or
+                // overtakes) the extrapolation; otherwise keep the old base so
+                // positionMs advances smoothly between coarse updates.
+                const qint64 nowMs = m_positionClock.isValid() ? m_positionClock.elapsed() : 0;
+                const qint64 extrapolatedUs = m_lastPositionUs
+                    + qRound64(m_snapshot.playbackRate * (nowMs - m_lastPositionClockMs) * 1000.0);
+                if (positionUs >= extrapolatedUs) {
+                    m_lastPositionUs = std::max<qlonglong>(0, positionUs);
+                    m_lastPositionClockMs = nowMs;
+                }
                 updateSnapshotPosition();
                 publishSnapshot();
             });
