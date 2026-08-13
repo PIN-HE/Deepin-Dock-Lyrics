@@ -71,8 +71,20 @@ bool sameTrack(const TrackIdentity &left, const TrackIdentity &right)
         && left.playerBusName == right.playerBusName;
 }
 
-TrackIdentity trackFromMetadata(const QVariantMap &metadata, const QString &busName)
+// 已知播放器的友好显示名；未识别播放器保持 MPRIS Identity 原样。
+// Friendly display names for known players; unknown ones keep the MPRIS
+// Identity as-is so we never mislabel a player we cannot identify.
+QString displayNameForPlayer(const QString &identity, const QString &busName)
 {
+    Q_UNUSED(busName);
+    if (identity == QLatin1String("open-orpheus"))
+        return QStringLiteral("网易云音乐（open-orpheus）");
+    if (identity == QLatin1String("ter-music") || identity == QLatin1String("ter_music"))
+        return QStringLiteral("Ter-Music（终端播放器）");
+    return identity;
+}
+
+TrackIdentity trackFromMetadata(const QVariantMap &metadata, const QString &busName){
     TrackIdentity track;
     track.playerBusName = busName;
     track.title = unwrapped(metadata.value(QStringLiteral("xesam:title"))).toString().trimmed();
@@ -408,7 +420,7 @@ void MprisPlayerDiscovery::requestRootProperties(const QString &busName)
         const QString identity = unwrapped(reply.value().value(QStringLiteral("Identity"))).toString();
         const QString desktopEntry = unwrapped(reply.value().value(QStringLiteral("DesktopEntry"))).toString();
         if (!identity.isEmpty())
-            descriptor.identity = identity;
+            descriptor.identity = displayNameForPlayer(identity, busName);
         descriptor.desktopEntry = desktopEntry;
         m_players.insert(busName, descriptor);
         emit availablePlayersChanged(availablePlayers());
