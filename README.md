@@ -22,7 +22,7 @@
 > Skills 使用说明见下文[AI 辅助开发工作流](#ai-辅助开发工作流deepin-skills)。
 
 - 源码仓库:<https://github.com/PIN-HE/Deepin-Dock-Lyrics>
-- 当前版本:`v1.0.0.1`(发布说明见 [CHANGELOG.md](CHANGELOG.md))
+- 当前版本:`v1.0.0.2`(发布说明见 [CHANGELOG.md](CHANGELOG.md))
 
 ---
 
@@ -257,6 +257,9 @@ systemctl --user daemon-reload
 ```bash
 systemctl --user enable --now lyrics-dockd.service
 ```
+
+> **首次安装或升级后**：正在运行的 `dde-shell` 不会自动扫描新增的 Applet。请注销后重新登录，
+> 或执行 `killall dde-shell` 让 Dock 自动重启并加载歌词插件。
 
 ## 使用说明
 

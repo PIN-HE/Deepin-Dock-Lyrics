@@ -7,6 +7,18 @@
 - Dock 状态、工具提示与设置应用根据系统语言自动切换简体中文或英文。
 - Switch Dock status text, tooltips, and the settings application between Simplified Chinese and English according to the system locale.
 
+## 1.0.0.2 - 2026-08-13
+
+### 中文
+
+- 修复 Debian 包将 dde-shell 插件接口版本误写为应用发布版本，导致 Applet 无法被 Dock 发现和挂载的问题。
+- 明确首次安装或升级后需要重启 dde-shell，令宿主重新扫描插件。
+
+### English
+
+- Fix the Debian package setting the dde-shell plugin interface version to the application release version, which prevented the Dock from discovering and mounting the applet.
+- Document that dde-shell must be restarted after first install or upgrade so it can rescan the plugin.
+
 ## 1.0.0.1 - 2026-08-13
 
 ### 中文

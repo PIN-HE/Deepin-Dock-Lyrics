@@ -1,6 +1,6 @@
 {
     "Plugin": {
-        "Version": "1.0.0.1",
+        "Version": "1.0",
         "Id": "org.deepin.ds.lyrics-dock",
         "Name": "Deepin Dock Lyrics",
         "Name[zh_CN]": "Deepin任务栏歌词",
